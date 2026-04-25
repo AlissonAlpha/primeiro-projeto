@@ -29,9 +29,10 @@ const navItems = [
     ],
   },
   {
-    label: "Resultados",
+    label: "Anúncios",
     items: [
       { label: "Campanhas", href: "/campaigns", icon: TrendingUp },
+      { label: "Criar Anúncio", href: "/ads/new", icon: Zap },
       { label: "Postagens", href: "/posts", icon: FileText },
     ],
   },

@@ -67,3 +67,30 @@ export async function listCampaigns(adAccountId: string): Promise<MetaCampaign[]
   const data = await res.json();
   return data.campaigns;
 }
+
+export interface CopyBrief {
+  product: string;
+  audience: string;
+  objective: string;
+  tone: string;
+  differentials: string;
+  cta_hint: string;
+}
+
+export async function generateCopy(brief: CopyBrief): Promise<{ raw_response: string }> {
+  const res = await fetch(`${API_URL}/copy/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(brief),
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+export async function uploadCreative(file: File): Promise<{ public_url: string; path: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/creatives/upload`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`Upload error: ${res.status}`);
+  return res.json();
+}
