@@ -1,23 +1,16 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from core.meta_client import (
-    get_all_ad_accounts,
-    create_campaign,
-    get_campaigns,
-    pause_campaign,
-    resume_campaign,
+from core.meta_client import get_all_ad_accounts, create_campaign
+from core.meta_insights import (
+    get_campaigns_with_insights,
+    get_campaign_insights_detail,
+    activate_campaign,
+    pause_campaign_api,
+    update_campaign_budget,
 )
 
 router = APIRouter(prefix="/meta", tags=["meta-ads"])
-
-
-class CreateCampaignRequest(BaseModel):
-    ad_account_id: str
-    name: str
-    objective: str  # OUTCOME_LEADS, OUTCOME_TRAFFIC, OUTCOME_SALES, OUTCOME_AWARENESS
-    daily_budget_brl: float
-    status: str = "PAUSED"
 
 
 @router.get("/accounts")
@@ -26,46 +19,74 @@ async def list_accounts():
         accounts = get_all_ad_accounts()
         return {"accounts": accounts, "total": len(accounts)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(500, str(e))
 
 
 @router.get("/accounts/{ad_account_id}/campaigns")
-async def list_campaigns(ad_account_id: str):
+async def list_campaigns(ad_account_id: str, days: int = 30):
     try:
-        campaigns = get_campaigns(ad_account_id)
-        return {"campaigns": campaigns, "total": len(campaigns)}
+        campaigns = get_campaigns_with_insights(ad_account_id, days)
+        active = [c for c in campaigns if c["status"] == "ACTIVE"]
+        total_spend = sum(c["insights"]["spend_brl"] for c in campaigns)
+        total_leads = sum(c["insights"]["leads"] for c in campaigns)
+        return {
+            "campaigns": campaigns,
+            "total": len(campaigns),
+            "active_count": len(active),
+            "total_spend_brl": round(total_spend, 2),
+            "total_leads": total_leads,
+            "period_days": days,
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(500, str(e))
 
 
-@router.post("/campaigns")
-async def create_new_campaign(req: CreateCampaignRequest):
+@router.get("/accounts/{ad_account_id}/campaigns/{campaign_id}/insights")
+async def campaign_insights(ad_account_id: str, campaign_id: str, days: int = 7):
     try:
-        # Meta Ads usa centavos
-        daily_budget_cents = int(req.daily_budget_brl * 100)
-        campaign = create_campaign(
-            ad_account_id=req.ad_account_id,
-            name=req.name,
-            objective=req.objective,
-            daily_budget_cents=daily_budget_cents,
-            status=req.status,
-        )
-        return {"success": True, "campaign": campaign}
+        return get_campaign_insights_detail(campaign_id, days)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(500, str(e))
+
+
+@router.patch("/campaigns/{campaign_id}/activate")
+async def activate(campaign_id: str):
+    try:
+        result = activate_campaign(campaign_id)
+        if "error" in result:
+            raise HTTPException(400, result["error"]["message"])
+        return {"success": True, "campaign_id": campaign_id, "status": "ACTIVE"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 @router.patch("/campaigns/{campaign_id}/pause")
 async def pause(campaign_id: str):
     try:
-        return pause_campaign(campaign_id)
+        result = pause_campaign_api(campaign_id)
+        if "error" in result:
+            raise HTTPException(400, result["error"]["message"])
+        return {"success": True, "campaign_id": campaign_id, "status": "PAUSED"}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(500, str(e))
 
 
-@router.patch("/campaigns/{campaign_id}/resume")
-async def resume(campaign_id: str):
+class BudgetUpdate(BaseModel):
+    daily_budget_brl: float
+
+
+@router.patch("/campaigns/{campaign_id}/budget")
+async def update_budget(campaign_id: str, body: BudgetUpdate):
     try:
-        return resume_campaign(campaign_id)
+        result = update_campaign_budget(campaign_id, body.daily_budget_brl)
+        if "error" in result:
+            raise HTTPException(400, result["error"]["message"])
+        return {"success": True, "campaign_id": campaign_id, "daily_budget_brl": body.daily_budget_brl}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(500, str(e))
