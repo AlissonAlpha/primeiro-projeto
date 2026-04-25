@@ -259,6 +259,7 @@ def validate_and_create_full_ad(
         }
         if genders:
             targeting["genders"] = genders
+        targeting["targeting_automation"] = {"advantage_audience": 0}
         adset_r = requests.post(
             f"https://graph.facebook.com/v21.0/{ad_account_id}/adsets",
             params={"access_token": token},
@@ -268,6 +269,7 @@ def validate_and_create_full_ad(
                 "daily_budget": int(daily_budget_brl * 100),
                 "billing_event": "IMPRESSIONS",
                 "optimization_goal": _get_optimization_goal(meta_objective),
+                "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
                 "targeting": targeting,
                 "status": status,
             },
