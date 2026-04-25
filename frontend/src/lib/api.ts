@@ -27,6 +27,10 @@ export async function chatWithAgent(
   return res.json();
 }
 
+export async function clearAgentSession(sessionId: string): Promise<void> {
+  await fetch(`${API_URL}/agents/session/${sessionId}`, { method: "DELETE" });
+}
+
 export async function healthCheck(): Promise<boolean> {
   try {
     const res = await fetch("http://localhost:8000/health");
