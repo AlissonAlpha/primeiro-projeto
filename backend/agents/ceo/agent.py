@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import SystemMessage
 from typing import TypedDict, Annotated, Optional
 from langgraph.graph.message import add_messages
-from backend.core.llm import get_claude
+from core.llm import get_claude
 
 
 class CEOState(TypedDict):

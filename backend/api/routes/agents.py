@@ -3,9 +3,9 @@ from pydantic import BaseModel
 from typing import Optional
 from langchain_core.messages import HumanMessage
 
-from backend.agents.traffic_manager.agent import traffic_manager_agent
-from backend.agents.social_media.agent import social_media_agent
-from backend.agents.ceo.agent import ceo_agent
+from agents.traffic_manager.agent import traffic_manager_agent
+from agents.social_media.agent import social_media_agent
+from agents.ceo.agent import ceo_agent
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 

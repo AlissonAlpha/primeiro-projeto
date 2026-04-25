@@ -3,7 +3,7 @@ from langgraph.prebuilt import ToolNode
 from langchain_core.messages import SystemMessage
 from .state import SocialMediaState
 from .tools import SOCIAL_MEDIA_TOOLS
-from backend.core.llm import get_claude
+from core.llm import get_claude
 
 
 SYSTEM_PROMPT = """You are an expert social media manager specialized in creating engaging content

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.api.routes.agents import router as agents_router
+from api.routes.agents import router as agents_router
 
 app = FastAPI(
     title="AI Marketing Agency",

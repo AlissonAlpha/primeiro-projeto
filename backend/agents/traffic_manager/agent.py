@@ -3,7 +3,7 @@ from langgraph.prebuilt import ToolNode
 from langchain_core.messages import SystemMessage, HumanMessage
 from .state import TrafficManagerState
 from .tools import TRAFFIC_TOOLS
-from backend.core.llm import get_claude
+from core.llm import get_claude
 
 
 SYSTEM_PROMPT = """You are an expert digital marketing traffic manager with deep knowledge of
