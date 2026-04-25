@@ -1,0 +1,41 @@
+# Web Framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# AI - Agents & LLMs
+langchain==0.3.12
+langchain-anthropic==0.3.3
+langchain-openai==0.2.14
+langgraph==0.2.59
+langchain-community==0.3.12
+openai==1.57.2
+anthropic==0.40.0
+
+# Database
+supabase==2.10.0
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# Cache & Queue
+redis==5.2.1
+celery==5.4.0
+kombu==5.4.2
+
+# HTTP Client
+httpx==0.28.1
+aiohttp==3.11.10
+
+# Meta & Google Ads APIs
+facebook-business==21.0.3
+google-ads==25.1.0
+
+# Utils
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.1
+tenacity==9.0.0
+structlog==24.4.0
