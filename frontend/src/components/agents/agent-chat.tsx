@@ -22,6 +22,7 @@ interface AgentChatProps {
   agentIcon: React.ReactNode;
   gradientClass: string;
   suggestions?: string[];
+  systemContext?: string;
 }
 
 export function AgentChat({
@@ -31,6 +32,7 @@ export function AgentChat({
   agentIcon,
   gradientClass,
   suggestions = [],
+  systemContext = "",
 }: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -57,7 +59,8 @@ export function AgentChat({
     setLoading(true);
 
     try {
-      const res = await chatWithAgent(agentType, content);
+      const messageWithContext = systemContext ? `${content}${systemContext}` : content;
+    const res = await chatWithAgent(agentType, messageWithContext);
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",

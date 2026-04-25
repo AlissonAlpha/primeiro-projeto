@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     META_APP_ID: str = ""
     META_APP_SECRET: str = ""
     META_ACCESS_TOKEN: str = ""
+    META_AD_ACCOUNT_ID: str = ""
 
     # Google Ads
     GOOGLE_ADS_DEVELOPER_TOKEN: str = ""

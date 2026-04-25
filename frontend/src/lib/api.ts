@@ -35,3 +35,35 @@ export async function healthCheck(): Promise<boolean> {
     return false;
   }
 }
+
+export interface AdAccount {
+  id: string;
+  name: string;
+  status: string;
+  currency: string;
+  amount_spent: string;
+  balance: string;
+}
+
+export async function listAdAccounts(): Promise<AdAccount[]> {
+  const res = await fetch(`${API_URL}/meta/accounts`);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const data = await res.json();
+  return data.accounts;
+}
+
+export interface MetaCampaign {
+  id: string;
+  name: string;
+  status: string;
+  objective: string;
+  daily_budget: string;
+  created_time: string;
+}
+
+export async function listCampaigns(adAccountId: string): Promise<MetaCampaign[]> {
+  const res = await fetch(`${API_URL}/meta/accounts/${adAccountId}/campaigns`);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const data = await res.json();
+  return data.campaigns;
+}
