@@ -35,6 +35,50 @@ OBJECTIVE_MAP = {
 
 
 @tool
+def search_locations(query: str, country_code: str = "BR") -> dict:
+    """Search for Meta Ads location keys by city/region name.
+    ALWAYS call this before creating an ad set when the user mentions a specific city or region.
+    Returns location keys required for geo targeting.
+
+    Examples: query='São Paulo', query='Bebedouro', query='Rio de Janeiro'"""
+    try:
+        token = settings.META_ACCESS_TOKEN
+        r = requests.get(
+            "https://graph.facebook.com/v21.0/search",
+            params={
+                "type": "adgeolocation",
+                "q": query,
+                "country_code": country_code,
+                "access_token": token,
+                "limit": 8,
+            },
+        )
+        data = r.json()
+        if "error" in data:
+            return {"success": False, "error": data["error"]["message"]}
+
+        locations = []
+        for loc in data.get("data", []):
+            if loc.get("type") in ("city", "region", "country"):
+                locations.append({
+                    "key": loc["key"],
+                    "name": loc["name"],
+                    "type": loc["type"],
+                    "region": loc.get("region", ""),
+                    "country": loc.get("country_name", ""),
+                })
+
+        return {
+            "success": True,
+            "query": query,
+            "locations": locations,
+            "tip": "Use the 'key' field in create_meta_ad_set as location_keys parameter.",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@tool
 def get_account_info(ad_account_id: str) -> dict:
     """Get saved settings for an ad account: WhatsApp number, website URL, Facebook Page ID.
     Always call this after the user selects an account to auto-fill known information."""
@@ -125,17 +169,24 @@ def validate_and_create_full_ad(
     age_min: int,
     age_max: int,
     genders: list[int],
-    countries: list[str],
     page_id: str,
     primary_text: str,
     headline: str,
     cta_button: str,
     link_url: str,
+    countries: list[str] = ["BR"],
+    city_keys: list[str] = [],
+    city_radius_km: int = 0,
     image_url: str = "",
     activate_immediately: bool = True,
 ) -> dict:
     """Validate all parameters and create the complete ad structure (Campaign + Ad Set + Creative + Ad).
     Runs a pre-launch checklist before creating. Activates immediately if all checks pass.
+
+    Location (use ONE of these):
+    - city_keys: list of city keys from search_locations (e.g. ['244475'] for Bebedouro/SP)
+    - city_radius_km: radius around the city in km (e.g. 30). Only used with city_keys.
+    - countries: fallback if no city_keys provided (default ['BR'])
 
     genders: [] = all, [1] = male, [2] = female
     cta_button: LEARN_MORE | SIGN_UP | SHOP_NOW | CONTACT_US | GET_QUOTE
@@ -187,12 +238,27 @@ def validate_and_create_full_ad(
             return {"success": False, "step": "campaign", "error": camp["error"]["message"]}
         campaign_id = camp["id"]
 
-        # 2. Ad Set
-        targeting = build_targeting(
-            age_min=age_min, age_max=age_max,
-            genders=genders if genders else None,
-            geo_locations={"countries": countries},
-        )
+        # 2. Ad Set — build geo_locations
+        if city_keys:
+            if city_radius_km > 0:
+                geo_locations = {
+                    "cities": [
+                        {"key": k, "radius": city_radius_km, "distance_unit": "kilometer"}
+                        for k in city_keys
+                    ]
+                }
+            else:
+                geo_locations = {"cities": [{"key": k} for k in city_keys]}
+        else:
+            geo_locations = {"countries": countries}
+
+        targeting = {
+            "age_min": age_min,
+            "age_max": age_max,
+            "geo_locations": geo_locations,
+        }
+        if genders:
+            targeting["genders"] = genders
         adset_r = requests.post(
             f"https://graph.facebook.com/v21.0/{ad_account_id}/adsets",
             params={"access_token": token},
@@ -420,6 +486,7 @@ def _get_optimization_goal(objective: str) -> str:
 
 
 TRAFFIC_TOOLS = [
+    search_locations,
     get_account_info,
     save_account_info,
     list_ad_accounts,

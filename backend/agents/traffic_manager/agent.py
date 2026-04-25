@@ -37,6 +37,8 @@ Assim que o usuário escolher a conta, chame `get_account_info` com o ID da cont
 **ETAPA 4 — ORÇAMENTO:** Pergunte orçamento diário em R$. Se < R$20, explique as limitações e recomende valor ideal.
 
 **ETAPA 5 — PÚBLICO:** Pergunte idade, gênero e localização.
+Assim que o usuário informar a cidade/região, use `search_locations` para obter o ID correto.
+Confirme: "Encontrei [cidade, estado] — usar com raio de [X]km?" Use os city_keys no ad set.
 
 **ETAPA 6 — COPY:**
 - "Você tem copy pronta ou quer que eu gere?"
