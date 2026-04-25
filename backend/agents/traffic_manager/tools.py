@@ -8,6 +8,7 @@ from core.meta_client import (
     get_campaigns as meta_get_campaigns,
 )
 from core.meta_ads_builder import create_ad_set, build_targeting
+from core.account_settings import get_account_settings_sync, save_account_settings_sync
 from core.meta_insights import (
     get_campaigns_with_insights,
     get_campaign_insights_detail,
@@ -31,6 +32,58 @@ OBJECTIVE_MAP = {
     "reconhecimento": "OUTCOME_AWARENESS",
     "engajamento": "OUTCOME_ENGAGEMENT",
 }
+
+
+@tool
+def get_account_info(ad_account_id: str) -> dict:
+    """Get saved settings for an ad account: WhatsApp number, website URL, Facebook Page ID.
+    Always call this after the user selects an account to auto-fill known information."""
+    try:
+        cfg = get_account_settings_sync(ad_account_id)
+        if not cfg:
+            return {
+                "success": True,
+                "found": False,
+                "message": "Nenhuma configuração salva para esta conta ainda.",
+                "ad_account_id": ad_account_id,
+            }
+        whatsapp = cfg.get("whatsapp_number")
+        wa_url = f"https://wa.me/{whatsapp}" if whatsapp else None
+        return {
+            "success": True,
+            "found": True,
+            "ad_account_id": ad_account_id,
+            "account_name": cfg.get("account_name"),
+            "whatsapp_number": whatsapp,
+            "whatsapp_url": wa_url,
+            "website_url": cfg.get("website_url"),
+            "facebook_page_id": cfg.get("facebook_page_id"),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@tool
+def save_account_info(
+    ad_account_id: str,
+    account_name: str,
+    whatsapp_number: str = "",
+    website_url: str = "",
+    facebook_page_id: str = "",
+) -> dict:
+    """Save account settings (WhatsApp, website, page ID) so they're auto-filled next time.
+    whatsapp_number format: 5517991234567 (country code + area code + number, no spaces or symbols)"""
+    try:
+        result = save_account_settings_sync(
+            ad_account_id=ad_account_id,
+            account_name=account_name,
+            whatsapp_number=whatsapp_number or None,
+            website_url=website_url or None,
+            facebook_page_id=facebook_page_id or None,
+        )
+        return {"success": True, "saved": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @tool
@@ -366,6 +419,8 @@ def _get_optimization_goal(objective: str) -> str:
 
 
 TRAFFIC_TOOLS = [
+    get_account_info,
+    save_account_info,
     list_ad_accounts,
     list_facebook_pages,
     validate_and_create_full_ad,
