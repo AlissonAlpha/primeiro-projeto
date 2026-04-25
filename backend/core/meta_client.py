@@ -53,6 +53,7 @@ def create_campaign(
             Campaign.Field.status: status,
             Campaign.Field.special_ad_categories: [],
             "daily_budget": daily_budget_cents,
+            "is_adset_budget_sharing_enabled": False,
         },
     )
     return {"id": campaign["id"], "name": campaign.get("name", name), "status": status}

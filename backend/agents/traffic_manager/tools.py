@@ -179,6 +179,7 @@ def validate_and_create_full_ad(
                 "objective": meta_objective,
                 "status": status,
                 "special_ad_categories": [],
+                "is_adset_budget_sharing_enabled": False,
             },
         )
         camp = camp_r.json()
