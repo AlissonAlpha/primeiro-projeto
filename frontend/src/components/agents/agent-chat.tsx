@@ -33,21 +33,51 @@ interface AgentChatProps {
 }
 
 const SESSION_KEY_PREFIX = "chat_session_";
+const MESSAGES_KEY_PREFIX = "chat_messages_";
+
+function loadPersistedSession(agentType: string): { sessionId: string; messages: Message[] } {
+  try {
+    const sid = localStorage.getItem(`${SESSION_KEY_PREFIX}${agentType}`);
+    const raw = localStorage.getItem(`${MESSAGES_KEY_PREFIX}${agentType}`);
+    const msgs: Message[] = raw
+      ? JSON.parse(raw).map((m: Message) => ({ ...m, timestamp: new Date(m.timestamp) }))
+      : [];
+    return {
+      sessionId: sid || `${SESSION_KEY_PREFIX}${agentType}_${Date.now()}`,
+      messages: msgs,
+    };
+  } catch {
+    return { sessionId: `${SESSION_KEY_PREFIX}${agentType}_${Date.now()}`, messages: [] };
+  }
+}
 
 export function AgentChat({
   agentType, agentName, agentDescription, agentIcon,
   gradientClass, suggestions = [], systemContext = "",
 }: AgentChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const persisted = loadPersistedSession(agentType);
+  const [messages, setMessages] = useState<Message[]>(persisted.messages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sessionId] = useState(() => `${SESSION_KEY_PREFIX}${agentType}_${Date.now()}`);
+  const [sessionId] = useState(persisted.sessionId);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist session ID
+  useEffect(() => {
+    localStorage.setItem(`${SESSION_KEY_PREFIX}${agentType}`, sessionId);
+  }, [sessionId, agentType]);
+
+  // Persist messages on every update
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${MESSAGES_KEY_PREFIX}${agentType}`, JSON.stringify(messages));
+    } catch {}
+  }, [messages, agentType]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -144,6 +174,8 @@ export function AgentChat({
   function clearChat() {
     setMessages([]);
     setPendingFiles([]);
+    localStorage.removeItem(`${MESSAGES_KEY_PREFIX}${agentType}`);
+    localStorage.removeItem(`${SESSION_KEY_PREFIX}${agentType}`);
   }
 
   return (
