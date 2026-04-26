@@ -260,19 +260,32 @@ def validate_and_create_full_ad(
         if genders:
             targeting["genders"] = genders
         targeting["targeting_automation"] = {"advantage_audience": 0}
+
+        adset_body: dict = {
+            "name": f"{campaign_name} — Conjunto 01",
+            "campaign_id": campaign_id,
+            "daily_budget": int(daily_budget_brl * 100),
+            "billing_event": "IMPRESSIONS",
+            "optimization_goal": _get_optimization_goal(meta_objective),
+            "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+            "targeting": targeting,
+            "status": status,
+        }
+
+        # promoted_object required for leads/traffic/sales objectives
+        promoted_object_map = {
+            "OUTCOME_LEADS": {"page_id": page_id},
+            "OUTCOME_TRAFFIC": {"page_id": page_id},
+            "OUTCOME_SALES": {"page_id": page_id},
+            "OUTCOME_ENGAGEMENT": {"page_id": page_id},
+        }
+        if meta_objective in promoted_object_map:
+            adset_body["promoted_object"] = promoted_object_map[meta_objective]
+
         adset_r = requests.post(
             f"https://graph.facebook.com/v21.0/{ad_account_id}/adsets",
             params={"access_token": token},
-            json={
-                "name": f"{campaign_name} — Conjunto 01",
-                "campaign_id": campaign_id,
-                "daily_budget": int(daily_budget_brl * 100),
-                "billing_event": "IMPRESSIONS",
-                "optimization_goal": _get_optimization_goal(meta_objective),
-                "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-                "targeting": targeting,
-                "status": status,
-            },
+            json=adset_body,
         )
         adset = adset_r.json()
         if "error" in adset:
