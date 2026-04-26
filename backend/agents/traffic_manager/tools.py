@@ -266,17 +266,23 @@ def create_complete_campaign(
             else:
                 geo = {"countries": ads_cfg.get("countries", ["BR"])}
 
+            is_advantage = ads_cfg.get("audience_type") == "advantage"
+
+            # Advantage+ requires age_max = 65 (Meta enforces this)
+            age_min = ads_cfg.get("age_min", 18)
+            age_max = 65 if is_advantage else ads_cfg.get("age_max", 65)
+
             # Build targeting
             targeting: dict = {
-                "age_min": ads_cfg.get("age_min", 18),
-                "age_max": ads_cfg.get("age_max", 65),
+                "age_min": age_min,
+                "age_max": age_max,
                 "geo_locations": geo,
             }
             if ads_cfg.get("genders"):
                 targeting["genders"] = ads_cfg["genders"]
 
             # Audience type
-            if ads_cfg.get("audience_type") == "advantage":
+            if is_advantage:
                 targeting["targeting_automation"] = {"advantage_audience": 1}
             else:
                 targeting["targeting_automation"] = {"advantage_audience": 0}

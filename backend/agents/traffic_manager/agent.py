@@ -52,8 +52,10 @@ Guie o usuário UMA pergunta por vez. Se ele já adiantou informações, registr
   ┌─────────────────────────────────────────────────────┐
   │ 1. Advantage+ Audience (recomendado para iniciantes)│
   │    A IA do Meta encontra automaticamente as pessoas │
-  │    mais propensas a converter. Você define só idade,│
-  │    localização e gênero. Meta faz o resto.          │
+  │    mais propensas a converter. Você define só idade │
+  │    mínima, localização e gênero. Meta faz o resto.  │
+  │    ⚠️ O Meta exige idade máx = 65 no Advantage+.   │
+  │    Sua preferência de faixa vira uma sugestão.      │
   │                                                     │
   │ 2. Público Manual                                   │
   │    Você define interesses e comportamentos          │
