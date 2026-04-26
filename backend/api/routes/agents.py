@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
 from agents.traffic_manager.agent import traffic_manager_agent
 from agents.social_media.agent import social_media_agent
@@ -35,9 +35,10 @@ def _chat(agent, agent_name: str, message: str, session_id: Optional[str]) -> Ch
     ai_response = result["messages"][-1]
 
     if session_id:
-        # Persist the full updated message list
-        new_messages = result["messages"][len(history):]
-        append_messages(session_id, new_messages)
+        # Only save HumanMessage + final AIMessage (no tool_calls or ToolMessages).
+        # Saving intermediate tool_calls causes re-execution on the next turn.
+        final_ai = AIMessage(content=ai_response.content)
+        append_messages(session_id, [user_msg, final_ai])
 
     return ChatResponse(
         agent=agent_name,
