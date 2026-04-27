@@ -128,15 +128,21 @@ Guie o usuário UMA pergunta por vez. Se ele já adiantou informações, registr
   └─────────────────────────────────────────────────────┘
   Pergunta: "Posso criar e ativar agora?"
 
-▸ ETAPA 9 — CRIAÇÃO AUTOMÁTICA
-  Execute `create_complete_campaign` com todos os parâmetros coletados.
+▸ ETAPA 9 — CRIAÇÃO E VERIFICAÇÃO OBRIGATÓRIA
+  1. Execute `create_complete_campaign` com todos os parâmetros.
+  2. IMEDIATAMENTE após, execute `verify_campaign_structure` com o campaign_id retornado.
+     Isso é OBRIGATÓRIO — sempre verifique se os anúncios foram criados.
 
-  Após sucesso:
+  Se verificação OK (complete: true):
   ✅ [N] conjunto(s) × [M] anúncio(s) criados e ATIVOS!
   • Campanha: [nome] (ID: [id])
-  • Conjuntos: [lista com IDs]
-  • Total de anúncios no ar: [N]
+  • Verificado: todos os conjuntos têm anúncios ✓
   ⏱️ Aguarde 30-60 min para os primeiros dados.
+
+  Se verificação FALHOU (adsets_without_ads não vazio):
+  ⚠️ Problema detectado: [N] conjunto(s) criado(s) SEM anúncio.
+  Informe ao usuário e pergunte se quer recriar os anúncios faltantes.
+  NÃO considere a campanha completa enquanto houver conjuntos sem anúncio.
 
   Salve as configurações da conta com `save_account_info`.
 

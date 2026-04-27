@@ -153,6 +153,7 @@ export function CampaignTemplate({ onSend }: CampaignTemplateProps) {
   const [locQuery, setLocQuery] = useState("");
   const [locResults, setLocResults] = useState<{ key: string; name: string; region: string }[]>([]);
   const [uploadingIdx, setUploadingIdx] = useState<string | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<string[]>([]);
 
   const [data, setData] = useState<TemplateData>({
@@ -255,17 +256,29 @@ export function CampaignTemplate({ onSend }: CampaignTemplateProps) {
   async function handleImageUpload(si: number, ci: number, file: File) {
     const key = `${si}-${ci}`;
     setUploadingIdx(key);
+    setUploadErrors(p => { const n = { ...p }; delete n[key]; return n; });
     try {
       const res = await uploadCreative(file);
+      if (!res.public_url) throw new Error("URL não retornada pelo servidor");
       updateCreative(si, ci, "image_url", res.public_url);
       updateCreative(si, ci, "image_name", file.name);
-    } catch {
-      alert("Erro no upload da imagem.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro desconhecido";
+      setUploadErrors(p => ({ ...p, [key]: `Falha no upload: ${msg}` }));
     }
     setUploadingIdx(null);
   }
 
   function handleSend() {
+    if (uploadingIdx) {
+      setErrors(["Aguarde o upload da imagem terminar antes de enviar."]);
+      return;
+    }
+    const uploadErrs = Object.values(uploadErrors);
+    if (uploadErrs.length > 0) {
+      setErrors(["Corrija os erros de upload antes de enviar:", ...uploadErrs]);
+      return;
+    }
     const errs = validate(data);
     if (errs.length > 0) { setErrors(errs); return; }
     onSend(buildMessage(data));
@@ -545,14 +558,16 @@ export function CampaignTemplate({ onSend }: CampaignTemplateProps) {
                                 </button>
                               </div>
                             ) : (
-                              <label className="flex items-center gap-2 cursor-pointer bg-secondary/50 border border-dashed border-border/60 hover:border-violet-500/50 rounded-lg px-3 py-2 transition-colors">
+                              <label className={`flex items-center gap-2 cursor-pointer border border-dashed rounded-lg px-3 py-2 transition-colors ${uploadErrors[`${si}-${ci}`] ? "bg-red-500/10 border-red-500/40 hover:border-red-500/60" : "bg-secondary/50 border-border/60 hover:border-violet-500/50"}`}>
                                 {uploadingIdx === `${si}-${ci}` ? (
                                   <><Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Enviando...</span></>
+                                ) : uploadErrors[`${si}-${ci}`] ? (
+                                  <><AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" /><span className="text-xs text-red-400">{uploadErrors[`${si}-${ci}`]} — clique para tentar novamente</span></>
                                 ) : (
                                   <><Image className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-xs text-muted-foreground">Clique para enviar imagem (JPG, PNG, WEBP)</span></>
                                 )}
                                 <input type="file" accept="image/*" className="hidden"
-                                  onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(si, ci, f); }} />
+                                  onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(si, ci, f); e.target.value = ""; }} />
                               </label>
                             )}
                           </div>

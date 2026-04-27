@@ -428,6 +428,50 @@ def create_complete_campaign(
 # ─────────────────────────────────────────────
 
 @tool
+def verify_campaign_structure(campaign_id: str, ad_account_id: str) -> dict:
+    """Verify that a campaign has ad sets with ads after creation.
+    ALWAYS call this after create_complete_campaign to confirm everything was created.
+    Returns a summary of what exists: ad sets count, ads count, missing pieces."""
+    try:
+        token = settings.META_ACCESS_TOKEN
+
+        # Get ad sets
+        adsets_r = requests.get(
+            f"https://graph.facebook.com/v21.0/{campaign_id}/adsets",
+            params={"fields": "id,name,status", "access_token": token}
+        )
+        adsets = adsets_r.json().get("data", [])
+
+        # Get ads for each ad set
+        total_ads = 0
+        adsets_without_ads = []
+        for adset in adsets:
+            ads_r = requests.get(
+                f"https://graph.facebook.com/v21.0/{adset['id']}/ads",
+                params={"fields": "id,name,status,creative", "access_token": token}
+            )
+            ads = ads_r.json().get("data", [])
+            total_ads += len(ads)
+            if len(ads) == 0:
+                adsets_without_ads.append(adset["name"])
+
+        complete = len(adsets) > 0 and total_ads > 0 and len(adsets_without_ads) == 0
+
+        return {
+            "success": True,
+            "campaign_id": campaign_id,
+            "complete": complete,
+            "ad_sets_count": len(adsets),
+            "total_ads_count": total_ads,
+            "adsets_without_ads": adsets_without_ads,
+            "status": "✅ Campanha completa — todos os conjuntos têm anúncios." if complete
+                      else f"⚠️ INCOMPLETA — {len(adsets_without_ads)} conjunto(s) sem anúncio: {adsets_without_ads}",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@tool
 def get_account_performance(ad_account_id: str, days: int = 30) -> dict:
     """Get overall account performance metrics."""
     try:
@@ -549,6 +593,7 @@ TRAFFIC_TOOLS = [
     list_ad_accounts,
     list_facebook_pages,
     create_complete_campaign,
+    verify_campaign_structure,
     get_account_performance,
     analyze_campaign_performance,
     activate_meta_campaign,
