@@ -11,6 +11,8 @@ import {
   FileText,
   Settings,
   Zap,
+  Sparkles,
+  ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +28,8 @@ const navItems = [
       { label: "CEO Estrategista", href: "/agents/ceo", icon: Brain },
       { label: "Gestor de Tráfego", href: "/agents/traffic-manager", icon: Megaphone },
       { label: "Social Media", href: "/agents/social-media", icon: Camera },
+      { label: "Estrategista de Conteúdo", href: "/agents/content-strategist", icon: Sparkles },
+      { label: "Criador de Imagens", href: "/agents/image-creator", icon: ImageIcon },
     ],
   },
   {

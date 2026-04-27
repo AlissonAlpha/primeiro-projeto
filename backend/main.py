@@ -4,6 +4,7 @@ from api.routes.agents import router as agents_router
 from api.routes.meta import router as meta_router
 from api.routes.copy import router as copy_router
 from api.routes.creatives import router as creatives_router
+from api.routes.content import router as content_router
 
 app = FastAPI(
     title="AI Marketing Agency",
@@ -23,6 +24,7 @@ app.include_router(agents_router, prefix="/api/v1")
 app.include_router(meta_router, prefix="/api/v1")
 app.include_router(copy_router, prefix="/api/v1")
 app.include_router(creatives_router, prefix="/api/v1")
+app.include_router(content_router, prefix="/api/v1")
 
 
 @app.get("/health")

@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Content & Creative
+    FREEPIK_API_KEY: str = ""
+    TAVILY_API_KEY: str = ""
+
     # Meta Ads
     META_APP_ID: str = ""
     META_APP_SECRET: str = ""

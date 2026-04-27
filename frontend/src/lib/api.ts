@@ -11,14 +11,17 @@ export interface ChatResponse {
   session_id?: string;
 }
 
-export type AgentType = "traffic-manager" | "social-media" | "ceo";
+export type AgentType = "traffic-manager" | "social-media" | "ceo" | "content-strategist" | "image-creator";
+
+const CONTENT_AGENTS: AgentType[] = ["content-strategist", "image-creator"];
 
 export async function chatWithAgent(
   agent: AgentType,
   message: string,
   sessionId?: string
 ): Promise<ChatResponse> {
-  const res = await fetch(`${API_URL}/agents/${agent}/chat`, {
+  const prefix = CONTENT_AGENTS.includes(agent) ? "content" : "agents";
+  const res = await fetch(`${API_URL}/${prefix}/${agent}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, session_id: sessionId }),
