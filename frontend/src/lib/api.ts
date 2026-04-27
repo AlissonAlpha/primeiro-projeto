@@ -13,15 +13,21 @@ export interface ChatResponse {
 
 export type AgentType = "traffic-manager" | "social-media" | "ceo" | "content-strategist" | "image-creator";
 
-const CONTENT_AGENTS: AgentType[] = ["content-strategist", "image-creator"];
+const AGENT_URL_MAP: Partial<Record<AgentType, string>> = {
+  "content-strategist": "content/strategist",
+  "image-creator": "content/image-creator",
+  "traffic-manager": "agents/traffic-manager",
+  "social-media": "agents/social-media",
+  "ceo": "agents/ceo",
+};
 
 export async function chatWithAgent(
   agent: AgentType,
   message: string,
   sessionId?: string
 ): Promise<ChatResponse> {
-  const prefix = CONTENT_AGENTS.includes(agent) ? "content" : "agents";
-  const res = await fetch(`${API_URL}/${prefix}/${agent}/chat`, {
+  const path = AGENT_URL_MAP[agent] || `agents/${agent}`;
+  const res = await fetch(`${API_URL}/${path}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, session_id: sessionId }),
