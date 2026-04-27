@@ -89,28 +89,37 @@ def _poll_freepik_task(task_id: str, headers: dict, max_attempts: int = 30) -> d
     return {"success": False, "error": "Timeout aguardando geração da imagem Freepik."}
 
 
-async def generate_and_store(prompt: str, aspect_ratio: str = "square_1_1", style: str = "photo") -> dict:
-    """Generate image with Freepik and store in Supabase Storage."""
+async def generate_and_store(
+    prompt: str,
+    aspect_ratio: str = "square_1_1",
+    style: str = "photo",
+    client_name: str = "geral",
+    project_name: str = "gerado",
+) -> dict:
+    """Generate image with Freepik and store in Supabase Storage organized by client/project."""
     result = generate_image_sync(prompt, aspect_ratio, style)
     if not result.get("success"):
         return result
 
     image_url = result["image_url"]
 
-    # Download and store in Supabase for persistence
     try:
         async with httpx.AsyncClient() as client:
             img_r = await client.get(image_url, timeout=30)
             img_bytes = img_r.content
 
-        ext = "jpg"
-        stored = await upload_creative(img_bytes, f"generated.{ext}", "image/jpeg")
+        stored = await upload_creative(
+            img_bytes, "generated.jpg", "image/jpeg",
+            client_name=client_name, project_name=project_name,
+        )
         return {
             "success": True,
             "freepik_url": image_url,
             "stored_url": stored["public_url"],
+            "folder": stored["folder"],
+            "client": client_name,
+            "project": project_name,
             "provider": "freepik",
         }
     except Exception as e:
-        # Return original URL if storage fails
         return {"success": True, "freepik_url": image_url, "stored_url": image_url, "provider": "freepik"}

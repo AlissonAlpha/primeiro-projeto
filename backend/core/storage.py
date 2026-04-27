@@ -22,11 +22,26 @@ async def ensure_bucket():
         return r.status_code in (200, 201, 409)
 
 
-async def upload_creative(file_bytes: bytes, filename: str, content_type: str) -> dict:
+def _slugify(text: str) -> str:
+    import re, unicodedata
+    text = unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode()
+    text = re.sub(r"[^\w\s-]", "", text.lower())
+    return re.sub(r"[-\s]+", "-", text).strip("-")[:40]
+
+
+async def upload_creative(
+    file_bytes: bytes,
+    filename: str,
+    content_type: str,
+    client_name: str = "geral",
+    project_name: str = "ads",
+) -> dict:
     await ensure_bucket()
-    ext = Path(filename).suffix
-    unique_name = f"{uuid.uuid4().hex}{ext}"
-    path = f"ads/{unique_name}"
+    ext = Path(filename).suffix or ".jpg"
+    unique_name = f"{uuid.uuid4().hex[:8]}{ext}"
+    client_slug = _slugify(client_name)
+    project_slug = _slugify(project_name)
+    path = f"{client_slug}/{project_slug}/{unique_name}"
 
     async with httpx.AsyncClient() as client:
         r = await client.post(
@@ -40,10 +55,13 @@ async def upload_creative(file_bytes: bytes, filename: str, content_type: str) -
     public_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{path}"
     return {
         "path": path,
+        "folder": f"{client_slug}/{project_slug}/",
         "public_url": public_url,
         "filename": unique_name,
         "original_name": filename,
         "content_type": content_type,
+        "client": client_name,
+        "project": project_name,
     }
 
 

@@ -40,6 +40,14 @@ const navItems = [
       { label: "Postagens", href: "/posts", icon: FileText },
     ],
   },
+  {
+    label: "Conteúdo",
+    items: [
+      { label: "Pipeline Criativo", href: "/pipeline", icon: Zap },
+      { label: "Estrategista", href: "/agents/content-strategist", icon: Sparkles },
+      { label: "Criador de Imagens", href: "/agents/image-creator", icon: ImageIcon },
+    ],
+  },
 ];
 
 export function SidebarNav() {
