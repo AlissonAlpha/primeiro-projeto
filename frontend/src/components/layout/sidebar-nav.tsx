@@ -3,17 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Megaphone,
-  Camera,
-  Brain,
-  TrendingUp,
-  FileText,
-  Settings,
-  Zap,
-  Sparkles,
-  ImageIcon,
-  FolderOpen,
+  LayoutDashboard, Megaphone, Camera, Brain,
+  TrendingUp, Calendar, BarChart2, Settings, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,25 +20,19 @@ const navItems = [
       { label: "CEO Estrategista", href: "/agents/ceo", icon: Brain },
       { label: "Gestor de Tráfego", href: "/agents/traffic-manager", icon: Megaphone },
       { label: "Social Media", href: "/agents/social-media", icon: Camera },
-      { label: "Estrategista de Conteúdo", href: "/agents/content-strategist", icon: Sparkles },
-      { label: "Criador de Imagens", href: "/agents/image-creator", icon: ImageIcon },
     ],
   },
   {
-    label: "Anúncios",
+    label: "Campanhas",
     items: [
-      { label: "Campanhas", href: "/campaigns", icon: TrendingUp },
-      { label: "Criar Anúncio", href: "/ads/new", icon: Zap },
-      { label: "Postagens", href: "/posts", icon: FileText },
+      { label: "Visão Geral", href: "/campaigns", icon: TrendingUp },
+      { label: "Relatórios", href: "/reports", icon: BarChart2 },
     ],
   },
   {
     label: "Conteúdo",
     items: [
-      { label: "Pipeline Criativo", href: "/pipeline", icon: Zap },
-      { label: "Estrategista", href: "/agents/content-strategist", icon: Sparkles },
-      { label: "Criador de Imagens", href: "/agents/image-creator", icon: ImageIcon },
-      { label: "Biblioteca de Criativos", href: "/library", icon: FolderOpen },
+      { label: "Calendário", href: "/calendar", icon: Calendar },
     ],
   },
 ];
@@ -94,10 +79,8 @@ export function SidebarNav() {
 
       {/* Footer */}
       <div className="px-3 pb-4 border-t border-white/10 pt-3">
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-all text-sm"
-        >
+        <Link href="/settings"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-all text-sm">
           <Settings className="w-4 h-4" />
           Configurações
         </Link>
@@ -106,31 +89,20 @@ export function SidebarNav() {
   );
 }
 
-type NavItemType = {
-  label: string;
-  href: string;
-  icon: React.ElementType;
-};
+type NavItemType = { label: string; href: string; icon: React.ElementType; };
 
 function NavItem({ item, pathname }: { item: NavItemType; pathname: string }) {
   const isActive = pathname === item.href;
   const Icon = item.icon;
-
   return (
-    <Link
-      href={item.href}
+    <Link href={item.href}
       className={cn(
         "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-        isActive
-          ? "bg-violet-600/20 text-violet-300 border border-violet-500/30"
-          : "text-white/60 hover:text-white hover:bg-white/5"
-      )}
-    >
+        isActive ? "bg-violet-600/20 text-violet-300 border border-violet-500/30" : "text-white/60 hover:text-white hover:bg-white/5"
+      )}>
       <Icon className={cn("w-4 h-4", isActive ? "text-violet-400" : "")} />
       {item.label}
-      {isActive && (
-        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />
-      )}
+      {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
     </Link>
   );
 }
