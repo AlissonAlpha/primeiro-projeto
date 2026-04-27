@@ -35,14 +35,22 @@ PROMOTED_OBJECT_MAP = {
 }
 
 
-def _get_optimization_goal(objective: str) -> str:
+def _get_optimization_goal(objective: str, link_url: str = "", pixel_id: str = "") -> str:
+    is_whatsapp = "wa.me" in link_url or "whatsapp" in link_url.lower()
+
+    if objective == "OUTCOME_LEADS":
+        if is_whatsapp:
+            return "LINK_CLICKS"       # WhatsApp destination → clicks
+        if pixel_id:
+            return "OFFSITE_CONVERSIONS"  # Website with pixel → conversions
+        return "LEAD_GENERATION"       # Meta instant form → lead gen
+
     return {
-        "OUTCOME_LEADS": "LEAD_GENERATION",
         "OUTCOME_TRAFFIC": "LINK_CLICKS",
-        "OUTCOME_SALES": "OFFSITE_CONVERSIONS",
+        "OUTCOME_SALES": "OFFSITE_CONVERSIONS" if pixel_id else "LINK_CLICKS",
         "OUTCOME_AWARENESS": "REACH",
         "OUTCOME_ENGAGEMENT": "POST_ENGAGEMENT",
-    }.get(objective, "LEAD_GENERATION")
+    }.get(objective, "LINK_CLICKS")
 
 
 # ─────────────────────────────────────────────
@@ -120,6 +128,30 @@ def search_interests(query: str) -> dict:
 
 
 @tool
+def get_account_pixels(ad_account_id: str) -> dict:
+    """Detect all Meta Pixels linked to an ad account.
+    Always call this after selecting an account to auto-fill pixel for conversion tracking.
+    Returns pixel IDs and their last fired time (active/inactive status)."""
+    try:
+        r = requests.get(
+            f"https://graph.facebook.com/v21.0/{ad_account_id}/adspixels",
+            params={"fields": "id,name,last_fired_time", "access_token": settings.META_ACCESS_TOKEN},
+        )
+        data = r.json()
+        if "error" in data:
+            return {"success": False, "error": data["error"]["message"]}
+        pixels = data.get("data", [])
+        return {
+            "success": True,
+            "pixels": pixels,
+            "total": len(pixels),
+            "recommended": pixels[0]["id"] if pixels else None,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@tool
 def get_account_info(ad_account_id: str) -> dict:
     """Get saved settings for an ad account: WhatsApp, website, page ID.
     Always call this after user selects an account."""
@@ -136,6 +168,7 @@ def get_account_info(ad_account_id: str) -> dict:
             "whatsapp_url": f"https://wa.me/{wa}" if wa else None,
             "website_url": cfg.get("website_url"),
             "facebook_page_id": cfg.get("facebook_page_id"),
+            "pixel_id": cfg.get("pixel_id"),
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -144,14 +177,15 @@ def get_account_info(ad_account_id: str) -> dict:
 @tool
 def save_account_info(ad_account_id: str, account_name: str,
                       whatsapp_number: str = "", website_url: str = "",
-                      facebook_page_id: str = "") -> dict:
-    """Save account settings for future use."""
+                      facebook_page_id: str = "", pixel_id: str = "") -> dict:
+    """Save account settings for future use (WhatsApp, page, pixel, website)."""
     try:
         result = save_account_settings_sync(
             ad_account_id=ad_account_id, account_name=account_name,
             whatsapp_number=whatsapp_number or None,
             website_url=website_url or None,
             facebook_page_id=facebook_page_id or None,
+            pixel_id=pixel_id or None,
         )
         return {"success": True, "saved": result}
     except Exception as e:
@@ -172,12 +206,14 @@ def create_complete_campaign(
     ad_sets: list[dict],
     budget_type: str = "ABO",
     campaign_daily_budget_brl: float = 0,
+    pixel_id: str = "",
     activate_immediately: bool = True,
 ) -> dict:
     """Create a complete campaign with multiple ad sets and multiple creatives per ad set.
 
     budget_type: 'ABO' (budget per ad set) or 'CBO' (campaign-level budget)
     campaign_daily_budget_brl: required only for CBO
+    pixel_id: Meta Pixel ID for conversion tracking (from get_account_pixels)
     activate_immediately: True = ACTIVE, False = PAUSED
 
     ad_sets format (list of dicts):
@@ -292,11 +328,12 @@ def create_complete_campaign(
                     ]
 
             # Ad set body
+            opt_goal = _get_optimization_goal(meta_objective, link_url, pixel_id)
             adset_body: dict = {
                 "name": set_name,
                 "campaign_id": campaign_id,
                 "billing_event": "IMPRESSIONS",
-                "optimization_goal": _get_optimization_goal(meta_objective),
+                "optimization_goal": opt_goal,
                 "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
                 "targeting": targeting,
                 "status": status,
@@ -304,7 +341,19 @@ def create_complete_campaign(
             if budget_type == "ABO":
                 adset_body["daily_budget"] = int(ads_cfg["daily_budget_brl"] * 100)
             if meta_objective in PROMOTED_OBJECT_MAP:
-                adset_body["promoted_object"] = {"page_id": page_id}
+                promoted_obj: dict = {"page_id": page_id}
+                is_whatsapp = "wa.me" in link_url or "whatsapp" in link_url.lower()
+                # Pixel only applies to website destinations, not WhatsApp
+                if pixel_id and not is_whatsapp:
+                    pixel_event_map = {
+                        "OUTCOME_LEADS": "LEAD",
+                        "OUTCOME_SALES": "PURCHASE",
+                        "OUTCOME_TRAFFIC": "PAGE_VIEW",
+                    }
+                    promoted_obj["pixel_id"] = pixel_id
+                    if meta_objective in pixel_event_map:
+                        promoted_obj["custom_event_type"] = pixel_event_map[meta_objective]
+                adset_body["promoted_object"] = promoted_obj
 
             adset_r = requests.post(f"https://graph.facebook.com/v21.0/{ad_account_id}/adsets",
                 params={"access_token": token}, json=adset_body)
@@ -494,6 +543,7 @@ def adjust_campaign_budget(campaign_id: str, new_daily_budget_brl: float, reason
 TRAFFIC_TOOLS = [
     search_locations,
     search_interests,
+    get_account_pixels,
     get_account_info,
     save_account_info,
     list_ad_accounts,
