@@ -154,42 +154,25 @@ def generate_content_brief(
         "folder": None,
     }
 
-    # Auto-trigger image generation
+    # Auto-trigger image generation using Nano Banana
     if generate_image:
         try:
-            from core.freepik_client import generate_image_sync
-            import asyncio, httpx
-            from core.storage import upload_creative
+            from core.nano_banana import generate_and_store_nano
+            from core.brand_identity import get_brand_colors_prompt
 
-            img = generate_image_sync(image_prompt, aspect_ratio, "photo")
+            # Enrich prompt with brand colors if available
+            brand_colors = get_brand_colors_prompt(client_name)
+            final_prompt = f"{image_prompt}. {brand_colors}" if brand_colors else image_prompt
+
+            img = generate_and_store_nano(final_prompt, aspect_ratio, client_name, theme)
             if img.get("success") and img.get("image_url"):
-                # Download and store organized by client/project
-                try:
-                    import httpx as _httpx
-                    from core.storage import _slugify, SUPABASE_STORAGE_URL, BUCKET, HEADERS
-                    import uuid
-                    resp = _httpx.get(img["image_url"], timeout=30)
-                    # Upload sync via requests
-                    client_slug = _slugify(client_name)
-                    project_slug = _slugify(theme)
-                    fname = f"{uuid.uuid4().hex[:8]}.jpg"
-                    path = f"{client_slug}/{project_slug}/{fname}"
-                    up = _httpx.post(
-                        f"{SUPABASE_STORAGE_URL}/object/{BUCKET}/{path}",
-                        headers={**HEADERS, "Content-Type": "image/jpeg"},
-                        content=resp.content, timeout=30,
-                    )
-                    from core.config import settings
-                    pub_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{path}"
-                    result["image_url"] = pub_url
-                    result["folder"] = f"{client_slug}/{project_slug}/"
-                    result["image_status"] = "generated"
-                    brief.generated_image_url = pub_url
-                    brief.status = "image_generated"
-                except Exception as store_err:
-                    result["image_url"] = img["image_url"]
-                    result["image_status"] = "generated"
-                    result["folder"] = f"{client_name}/{theme}/"
+                from core.storage import _slugify
+                result["image_url"] = img["image_url"]
+                result["folder"] = img.get("folder", f"{_slugify(client_name)}/{_slugify(theme)}/")
+                result["image_status"] = "generated"
+                result["model"] = "nano-banana"
+                brief.generated_image_url = img["image_url"]
+                brief.status = "image_generated"
             else:
                 result["image_status"] = "failed"
                 result["image_error"] = img.get("error", "Unknown error")
