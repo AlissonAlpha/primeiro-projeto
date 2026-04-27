@@ -54,10 +54,10 @@ def generate_image_sync(
         if task_id:
             return _poll_freepik_task(task_id, headers)
 
-        # Direct response
-        images = data.get("data", {}).get("images") or data.get("images", [])
-        if images:
-            url = images[0].get("url") or images[0].get("src")
+        # Direct response (non-async)
+        generated = data.get("data", {}).get("generated") or data.get("generated", [])
+        if generated:
+            url = generated[0] if isinstance(generated[0], str) else generated[0].get("url") or generated[0].get("src")
             return {"success": True, "image_url": url, "provider": "freepik"}
 
         return {"success": False, "error": "Nenhuma imagem retornada", "raw": data}
@@ -76,13 +76,14 @@ def _poll_freepik_task(task_id: str, headers: dict, max_attempts: int = 30) -> d
         data = r.json()
         status = data.get("data", {}).get("status") or data.get("status", "")
 
-        if status in ("completed", "succeeded", "done"):
-            images = data.get("data", {}).get("images") or data.get("images", [])
-            if images:
-                url = images[0].get("url") or images[0].get("src")
+        if status in ("completed", "succeeded", "done", "COMPLETED", "SUCCEEDED"):
+            generated = data.get("data", {}).get("generated") or data.get("generated", [])
+            if generated:
+                # Freepik returns list of URL strings
+                url = generated[0] if isinstance(generated[0], str) else generated[0].get("url") or generated[0].get("src")
                 return {"success": True, "image_url": url, "provider": "freepik", "task_id": task_id}
 
-        if status in ("failed", "error"):
+        if status in ("failed", "error", "FAILED", "ERROR"):
             return {"success": False, "error": f"Freepik task failed: {status}", "raw": data}
 
     return {"success": False, "error": "Timeout aguardando geração da imagem Freepik."}
