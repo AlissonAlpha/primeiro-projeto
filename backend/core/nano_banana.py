@@ -95,6 +95,14 @@ def generate_and_store_nano(
     size: str = "square_1_1",
     client_name: str = "geral",
     project_name: str = "criativo",
+    headline: str = "",
+    subtext: str = "",
+    cta_text: str = "",
+    logo_url: str = "",
+    brand_color: str = "",
+    accent_color: str = "",
+    layout: str = "bottom_bar",
+    compose: bool = True,
 ) -> dict:
     """Generate with Nano Banana and store in Supabase Storage. Synchronous."""
     result = generate_nano_banana(prompt, size)
@@ -106,6 +114,25 @@ def generate_and_store_nano(
         return {"success": False, "error": "No images to store"}
 
     img_bytes = images[0]["bytes"]
+
+    # ── Compose ad if requested ──
+    if compose and headline:
+        try:
+            from .image_compositor import compose_ad
+            composed = compose_ad(
+                base_image_bytes=img_bytes,
+                headline=headline,
+                subtext=subtext,
+                cta_text=cta_text or "Saiba Mais",
+                logo_url=logo_url,
+                brand_color=brand_color or "#1A1A2E",
+                accent_color=accent_color or "#E8A020",
+                layout=layout,
+            )
+            img_bytes = composed
+        except Exception as e:
+            logger.warning("composition_failed", error=str(e))
+
     client_slug = _slugify(client_name)
     project_slug = _slugify(project_name)
     fname = f"{uuid.uuid4().hex[:8]}.jpg"
@@ -129,13 +156,13 @@ def generate_and_store_nano(
             "path": path,
             "model": "nano-banana",
             "provider": "freepik",
+            "composed": compose and bool(headline),
         }
     except Exception as e:
-        # Fallback: return base64 as data URL
         b64_str = base64.b64encode(img_bytes).decode()
         return {
             "success": True,
-            "image_url": f"data:image/jpeg;base64,{b64_str[:50]}...",
+            "image_url": f"data:image/jpeg;base64,{b64_str}",
             "model": "nano-banana",
             "provider": "freepik",
             "storage_error": str(e),

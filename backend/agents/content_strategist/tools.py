@@ -228,7 +228,33 @@ def generate_content_brief(
             brand_colors = get_brand_colors_prompt(client_name)
             final_prompt = f"{image_prompt}. {brand_colors}" if brand_colors else image_prompt
 
-            img = generate_and_store_nano(final_prompt, aspect_ratio, client_name, theme)
+            # Get logo and colors for composition
+            from core.brand_identity import get_brand_logo_url
+            logo = get_brand_logo_url(client_name)
+            # Parse dominant color from brand_colors string
+            dom_color = ""
+            acc_color = ""
+            if brand_colors:
+                import re
+                hexes = re.findall(r'#[0-9a-fA-F]{6}', brand_colors)
+                if hexes:
+                    dom_color = hexes[0]
+                    acc_color = hexes[1] if len(hexes) > 1 else hexes[0]
+
+            img = generate_and_store_nano(
+                prompt=final_prompt,
+                size=aspect_ratio,
+                client_name=client_name,
+                project_name=theme,
+                headline=hook[:50] if hook else theme[:50],
+                subtext=copy_direction[:60] if copy_direction else "",
+                cta_text=cta[:20] if cta else "Saiba Mais",
+                logo_url=logo,
+                brand_color=dom_color or "#1A1A2E",
+                accent_color=acc_color or "#E8A020",
+                layout="bottom_bar",
+                compose=True,
+            )
             if img.get("success") and img.get("image_url"):
                 from core.storage import _slugify
                 result["image_url"] = img["image_url"]
