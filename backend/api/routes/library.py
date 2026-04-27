@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import List
 import requests
 from core.config import settings
 
@@ -20,6 +22,62 @@ def list_prefix(prefix: str = "") -> list:
         json={"prefix": prefix, "limit": 200, "offset": 0},
     )
     return r.json() if r.status_code == 200 else []
+
+
+class DeleteRequest(BaseModel):
+    paths: List[str]
+
+
+@router.delete("/files")
+async def delete_files(body: DeleteRequest):
+    """Delete one or more files from Supabase Storage."""
+    try:
+        r = requests.delete(
+            f"{SUPABASE_URL}/storage/v1/object/{BUCKET}",
+            headers=HEADERS,
+            json=body.paths,
+        )
+        if r.status_code not in (200, 204):
+            raise HTTPException(400, f"Delete failed: {r.text}")
+        return {"success": True, "deleted": len(body.paths), "paths": body.paths}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.delete("/folder")
+async def delete_folder(prefix: str):
+    """Delete all files inside a folder (by prefix)."""
+    try:
+        # List all files in the folder
+        r = requests.post(
+            f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET}",
+            headers=HEADERS,
+            json={"prefix": prefix if prefix.endswith("/") else f"{prefix}/", "limit": 1000},
+        )
+        items = r.json()
+        paths = [
+            f"{prefix}/{item['name']}" if not prefix.endswith("/") else f"{prefix}{item['name']}"
+            for item in items
+            if isinstance(item, dict) and item.get("id")
+        ]
+        if not paths:
+            return {"success": True, "deleted": 0, "message": "Pasta vazia ou não encontrada."}
+
+        # Delete all files
+        rd = requests.delete(
+            f"{SUPABASE_URL}/storage/v1/object/{BUCKET}",
+            headers=HEADERS,
+            json=paths,
+        )
+        if rd.status_code not in (200, 204):
+            raise HTTPException(400, f"Delete failed: {rd.text}")
+        return {"success": True, "deleted": len(paths), "folder": prefix}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 @router.get("/folders")
