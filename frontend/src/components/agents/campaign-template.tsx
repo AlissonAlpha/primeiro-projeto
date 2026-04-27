@@ -278,6 +278,16 @@ export function CampaignTemplate({ onSend }: { onSend: (msg: string) => void }) 
                     )}
                   </div>
 
+                  {/* Campaign name */}
+                  <div>
+                    <label className={lbl}>Nome da campanha</label>
+                    <input className={inp}
+                      placeholder={`Ex: ${data.account?.name || "Cliente"} | ${OBJECTIVES.find(o => o.value === data.objective)?.label || "Leads"} | ${new Date().toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}`}
+                      value={data.campaignName}
+                      onChange={e => set("campaignName", e.target.value)} />
+                    <p className="text-xs text-muted-foreground mt-1.5">Deixe vazio para gerar automaticamente</p>
+                  </div>
+
                   {/* Destination */}
                   <div>
                     <label className={lbl}>Destino do anúncio</label>
