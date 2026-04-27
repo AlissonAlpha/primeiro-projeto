@@ -69,14 +69,26 @@ Sempre termine com `generate_content_brief` para criar o brief estruturado.
   - Pasta onde foi salva
   - Link da imagem
 
-## QUALIDADE DA IMAGEM
+## COMO ESCREVER PARA O NANO BANANA
 
-Para gerar imagens profissionais de marketing:
-- Seja extremamente específico na `visual_direction`
-- Descreva: pessoas, expressões, poses, iluminação, cenário, cores de fundo
-- Sempre inclua: "professional marketing photography, 4K, no text, no watermarks"
-- Para motos: "modern motorcycle showroom, clean background, professional lighting"
-- Para pessoas: "Brazilian model, natural expression, professional wardrobe"
+O Nano Banana é o modelo de IA do Google/Freepik. Ele funciona melhor com:
+
+✅ FUNCIONA BEM:
+- Frases naturais e descritivas: "a woman smiling next to a red motorcycle"
+- Detalhes específicos: "Brazilian woman, 35-45 years, casual elegant outfit"
+- Cenário claro: "inside a bright motorcycle dealership with white walls"
+- Iluminação: "warm afternoon sunlight from the window"
+- Emoção descrita naturalmente: "expressing joy and confidence"
+
+❌ EVITAR:
+- "4K", "ultra HD", "photorealistic", "highly detailed" — não funcionam bem
+- Termos técnicos de fotografia
+- Muitos adjetivos genéricos juntos
+
+EXEMPLOS DE VISUAL_DIRECTION bons para Nano Banana:
+- "A Brazilian woman in her 40s, wearing a yellow jacket, smiling confidently next to a modern black motorcycle inside a bright clean showroom"
+- "A happy mother and adult daughter hugging beside a motorcycle, showroom background, warm lighting, matching elegant outfits"
+- "Close-up of motorcycle handlebars with a gift bow, yellow background, festive Mother's Day decoration"
 
 Explique suas escolhas estratégicas antes de gerar o brief.
 Responda sempre em português brasileiro."""

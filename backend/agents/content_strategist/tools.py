@@ -191,14 +191,16 @@ def generate_content_brief(
     }
     aspect_ratio = aspect_map.get(format.lower(), aspect_map.get(platform.lower(), "square_1_1"))
 
+    # Nano Banana (Google Imagen) responds best to natural, descriptive prompts
+    # Avoid: technical jargon, "4K", "ultra HD", "photorealistic"
+    # Use: specific scenes, emotions, lighting, colors, people descriptions
     image_prompt = (
-        f"{visual_direction}. "
-        f"Professional commercial marketing photography for {segment} in Brazil. "
-        f"Theme: {theme}. Emotion conveyed: {emotion}. "
-        f"Ultra high quality 4K, sharp focus, perfect composition, "
-        f"professional studio or natural lighting, vibrant and engaging, "
-        f"suitable for {platform} {format} advertising. "
-        f"No text overlays, no watermarks, no logos."
+        f"Photo of {visual_direction}. "
+        f"The scene shows {emotion} emotion in a {segment} context in Brazil. "
+        f"Setting: clean, professional, well-lit environment. "
+        f"Style: modern advertising photography, vibrant colors, natural expressions. "
+        f"The background leaves visual space for text overlay at the bottom. "
+        f"Do not include any text, signs, or watermarks in the image."
     )
 
     from core.content_brief import ContentBrief

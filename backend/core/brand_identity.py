@@ -126,7 +126,10 @@ def get_brand_colors_prompt(client_name_or_account_id: str) -> str:
             return data[0].get("brand_colors", "")
         # Fallback: search by account_name (case-insensitive)
         r2 = req_lib.get(f"{SUPABASE_URL}/rest/v1/account_settings", headers=h,
-            params={"account_name": f"ilike.{client_name_or_account_id}", "limit": "1"})
+            params={"account_name": f"ilike.{client_name_or_account_id}",
+                    "brand_colors": "not.is.null",
+                    "order": "updated_at.desc",
+                    "limit": "1"})
         data2 = r2.json()
         if data2:
             return data2[0].get("brand_colors", "")
@@ -136,11 +139,14 @@ def get_brand_colors_prompt(client_name_or_account_id: str) -> str:
 
 
 def get_brand_logo_url(client_name: str) -> str:
-    """Get saved logo URL by client name."""
+    """Get saved logo URL by client name — returns the record that has a logo."""
     try:
         h = {"Authorization": f"Bearer {settings.SUPABASE_KEY}", "apikey": settings.SUPABASE_KEY}
         r = req_lib.get(f"{SUPABASE_URL}/rest/v1/account_settings", headers=h,
-            params={"account_name": f"ilike.{client_name}", "limit": "1"})
+            params={"account_name": f"ilike.{client_name}",
+                    "logo_url": "not.is.null",
+                    "order": "updated_at.desc",
+                    "limit": "1"})
         data = r.json()
         if data:
             return data[0].get("logo_url", "")
