@@ -185,7 +185,9 @@ export function CampaignTemplate({ onSend }: { onSend: (msg: string) => void }) 
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-xl p-0 gap-0 overflow-hidden border-border/50 max-h-[90vh]">
+        <DialogContent
+          showCloseButton={false}
+          className="sm:max-w-xl p-0 gap-0 overflow-hidden border-border/50 max-h-[90vh] w-[calc(100vw-2rem)]">
 
           {/* Header */}
           <div className="px-6 pt-5 pb-4 border-b border-border/40 bg-card">
@@ -196,7 +198,7 @@ export function CampaignTemplate({ onSend }: { onSend: (msg: string) => void }) 
                 </div>
                 <span className="font-semibold text-sm">Template de Campanha</span>
               </div>
-              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-muted">
                 <X className="w-4 h-4" />
               </button>
             </div>
