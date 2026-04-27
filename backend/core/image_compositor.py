@@ -1,254 +1,218 @@
 """
-Image Compositor — Professional ad creative assembly
-Base photo (Freepik) + Logo + Text + Brand colors = Final Ad
+Professional Ad Creative Compositor
+Assembles: Base photo + Brand overlay + Campaign texts + Logo
 """
-import io
-import requests
-import structlog
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+import io, os, requests, structlog
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from typing import Optional
-import os
 
 logger = structlog.get_logger()
-
 FONT_DIR = "/tmp/agency_fonts"
 os.makedirs(FONT_DIR, exist_ok=True)
 
+FONT_URLS = {
+    "bold":     "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-Bold.ttf",
+    "semibold": "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-SemiBold.ttf",
+    "regular":  "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-Regular.ttf",
+    "light":    "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-Light.ttf",
+}
 
-def _download_font(variant: str = "Bold") -> str:
-    path = f"{FONT_DIR}/Montserrat-{variant}.ttf"
+def _get_font(size: int, weight: str = "bold") -> ImageFont.FreeTypeFont:
+    path = f"{FONT_DIR}/montserrat_{weight}.ttf"
+    if not os.path.exists(path):
+        try:
+            r = requests.get(FONT_URLS[weight], timeout=15)
+            if r.status_code == 200:
+                open(path, "wb").write(r.content)
+        except Exception:
+            pass
     if os.path.exists(path):
-        return path
-    urls = {
-        "Bold": "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-Bold.ttf",
-        "Regular": "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-Regular.ttf",
-        "SemiBold": "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-SemiBold.ttf",
-    }
-    try:
-        r = requests.get(urls.get(variant, urls["Bold"]), timeout=15)
-        if r.status_code == 200:
-            with open(path, "wb") as f:
-                f.write(r.content)
-            return path
-    except Exception:
-        pass
-    return ""
-
-
-def _font(size: int, variant: str = "Bold") -> ImageFont.FreeTypeFont:
-    p = _download_font(variant)
-    if p and os.path.exists(p):
-        return ImageFont.truetype(p, size)
+        return ImageFont.truetype(path, size)
     return ImageFont.load_default()
-
 
 def _hex(h: str, a: int = 255) -> tuple:
     h = h.lstrip("#")
-    if len(h) != 6:
-        return (30, 30, 30, a)
-    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), a)
+    if len(h) != 6: return (20, 20, 20, a)
+    return (int(h[:2],16), int(h[2:4],16), int(h[4:],16), a)
 
+def _lum(h: str) -> float:
+    c = _hex(h)
+    return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]
 
-def _luminance(hex_color: str) -> float:
-    rgb = _hex(hex_color)
-    return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
-
-
-def _contrast_color(bg: str) -> tuple:
-    return (15, 15, 15, 255) if _luminance(bg) > 128 else (255, 255, 255, 255)
-
+def _contrast(h: str) -> tuple:
+    return (15,15,15,255) if _lum(h) > 128 else (255,255,255,255)
 
 def _wrap(text: str, font: ImageFont.FreeTypeFont, max_w: int) -> list[str]:
-    words = text.split()
-    lines, cur = [], ""
-    dummy_draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    draw = ImageDraw.Draw(Image.new("RGB",(1,1)))
+    words, lines, cur = text.split(), [], ""
     for w in words:
-        test = f"{cur} {w}".strip()
-        if dummy_draw.textlength(test, font=font) <= max_w:
-            cur = test
+        t = f"{cur} {w}".strip()
+        if draw.textlength(t, font=font) <= max_w: cur = t
         else:
-            if cur:
-                lines.append(cur)
+            if cur: lines.append(cur)
             cur = w
-    if cur:
-        lines.append(cur)
+    if cur: lines.append(cur)
     return lines
 
 
 def compose_ad(
     base_image_bytes: bytes,
-    headline: str,
-    subtext: str = "",
-    cta_text: str = "Saiba Mais",
+    texts: dict,
     logo_url: str = "",
     brand_color: str = "#1a1a1a",
     accent_color: str = "#fccc04",
     layout: str = "bottom_bar",
 ) -> bytes:
-    """Compose final ad: photo + brand bar + headline + CTA + logo."""
-    logger.info("composing_ad", headline=headline[:40], has_logo=bool(logo_url))
+    """
+    Compose final ad with multiple text layers.
+
+    texts dict keys:
+    - tagline: small text above headline (ex: "Dia das Mães 2026")
+    - headline: main message (ex: "Mãe é amor que nunca pede nada em troca ❤️")
+    - subtext: secondary line (ex: "Neste Dia das Mães, retribua com carinho.")
+    - cta: call to action button text (ex: "Presenteie com Gotrix ✨")
+    """
+    logger.info("composing_ad", layout=layout, has_logo=bool(logo_url))
 
     base = Image.open(io.BytesIO(base_image_bytes)).convert("RGBA")
     W, H = base.size
-
     canvas = base.copy()
-    ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ov = Image.new("RGBA", (W, H), (0,0,0,0))
     draw = ImageDraw.Draw(ov)
 
-    brand_rgb = _hex(brand_color, 245)
-    accent_rgb = _hex(accent_color, 255)
-    text_on_brand = _contrast_color(brand_color)
-    text_on_accent = _contrast_color(accent_color)
+    brand_rgba = _hex(brand_color, 240)
+    accent_rgba = _hex(accent_color, 255)
+    text_main = _contrast(brand_color)
+    text_accent = _contrast(accent_color)
+    pad = int(W * 0.055)
 
-    if layout == "bottom_bar":
-        # ── Dark brand bar at bottom (28% height) ──
-        bar_h = int(H * 0.28)
+    if layout in ("bottom_bar", "bottom_gradient"):
+        bar_h = int(H * 0.32)
         bar_y = H - bar_h
-        pad = int(W * 0.05)
 
-        # Gradient fade at top of bar
-        for i in range(60):
-            alpha = int(brand_rgb[3] * (i / 60))
-            draw.rectangle([(0, bar_y - 60 + i), (W, bar_y - 59 + i)],
-                           fill=(*brand_rgb[:3], alpha))
+        if layout == "bottom_bar":
+            # Gradient fade then solid
+            for i in range(80):
+                a = int(brand_rgba[3] * (i/80)**1.5)
+                draw.rectangle([(0, bar_y-80+i),(W, bar_y-79+i)], fill=(*brand_rgba[:3], a))
+            draw.rectangle([(0, bar_y),(W, H)], fill=brand_rgba)
+            draw.rectangle([(0, bar_y),(W, bar_y+5)], fill=accent_rgba)
+        else:
+            for i in range(bar_h + 100):
+                a = int(220 * (i/(bar_h+100))**1.3)
+                draw.rectangle([(0, H-bar_h-100+i),(W, H-bar_h-99+i)], fill=(*brand_rgba[:3], a))
 
-        # Solid bar
-        draw.rectangle([(0, bar_y), (W, H)], fill=brand_rgb)
+        logo_w_reserve = int(W * 0.26) if logo_url else 0
+        text_w = W - pad*2 - logo_w_reserve
 
-        # Accent top line (4px)
-        draw.rectangle([(0, bar_y), (W, bar_y + 5)], fill=accent_rgb)
+        y = bar_y + int(bar_h * 0.09)
 
-        # Headline
-        fs_h = max(int(W * 0.058), 30)
-        f_headline = _font(fs_h, "Bold")
-        fs_sub = max(int(W * 0.032), 16)
-        f_sub = _font(fs_sub, "Regular")
+        # Tagline (small, accent color)
+        tagline = texts.get("tagline", "")
+        if tagline:
+            f_tag = _get_font(max(int(W*0.025), 13), "semibold")
+            tag_color = (*accent_rgba[:3], 220)
+            draw.text((pad, y), tagline.upper(), font=f_tag, fill=tag_color)
+            y += int(W*0.025) + int(H*0.012)
 
-        logo_space = int(W * 0.28) if logo_url else 0
-        text_max_w = W - pad * 2 - logo_space
+        # Headline (large, white/contrast)
+        headline = texts.get("headline", "")
+        if headline:
+            f_h = _get_font(max(int(W*0.052), 26), "bold")
+            lines = _wrap(headline, f_h, text_w)
+            for line in lines[:2]:
+                draw.text((pad, y), line, font=f_h, fill=text_main)
+                y += int(W*0.052) + int(H*0.008)
 
-        lines = _wrap(headline, f_headline, text_max_w)
-        y = bar_y + int(bar_h * 0.13)
-        for line in lines[:2]:
-            draw.text((pad, y), line, font=f_headline, fill=text_on_brand)
-            y += fs_h + int(fs_h * 0.2)
-
+        # Subtext
+        subtext = texts.get("subtext", "")
         if subtext:
-            y += 4
-            sub_lines = _wrap(subtext, f_sub, text_max_w)
-            for sl in sub_lines[:1]:
-                draw.text((pad, y), sl, font=f_sub, fill=(*text_on_brand[:3], 180))
+            y += int(H*0.006)
+            f_s = _get_font(max(int(W*0.031), 15), "regular")
+            sub_color = (*text_main[:3], 190)
+            for sl in _wrap(subtext, f_s, text_w)[:2]:
+                draw.text((pad, y), sl, font=f_s, fill=sub_color)
+                y += int(W*0.031) + int(H*0.006)
 
-        # CTA button (accent colored)
-        btn_w = int(W * 0.26)
-        btn_h = int(bar_h * 0.26)
-        btn_x = W - pad - btn_w
-        btn_y = H - pad - btn_h
-        draw.rounded_rectangle(
-            [(btn_x, btn_y), (btn_x + btn_w, btn_y + btn_h)],
-            radius=int(btn_h * 0.3), fill=accent_rgb
-        )
-        f_btn = _font(max(int(btn_h * 0.4), 14), "Bold")
-        draw.text(
-            (btn_x + btn_w // 2, btn_y + btn_h // 2),
-            cta_text, font=f_btn, fill=text_on_accent, anchor="mm"
-        )
+        # CTA button
+        cta = texts.get("cta", "")
+        if cta:
+            f_btn = _get_font(max(int(W*0.032), 16), "bold")
+            cta_w = int(draw.textlength(cta, font=f_btn) + W*0.08)
+            btn_h = max(int(H*0.055), 40)
+            btn_x = pad
+            btn_y = H - pad - btn_h
+            draw.rounded_rectangle([(btn_x, btn_y),(btn_x+cta_w, btn_y+btn_h)],
+                                   radius=int(btn_h*0.3), fill=accent_rgba)
+            draw.text((btn_x + cta_w//2, btn_y + btn_h//2), cta,
+                      font=f_btn, fill=text_accent, anchor="mm")
 
-    elif layout == "overlay":
-        # ── Bottom gradient overlay ──
-        grad_h = int(H * 0.55)
-        for i in range(grad_h):
-            alpha = int(230 * (i / grad_h) ** 1.2)
-            y_pos = H - grad_h + i
-            draw.rectangle([(0, y_pos), (W, y_pos + 1)],
-                           fill=(*brand_rgb[:3], alpha))
+    elif layout == "overlay_center":
+        # Full overlay with centered text
+        for i in range(H):
+            a = int(180 * (i/H)**0.8)
+            draw.rectangle([(0,i),(W,i+1)], fill=(*brand_rgba[:3], a))
 
-        pad = int(W * 0.06)
-        fs_h = max(int(W * 0.072), 34)
-        f_h = _font(fs_h, "Bold")
-        fs_sub = max(int(W * 0.038), 18)
-        f_s = _font(fs_sub, "Regular")
+        y = int(H * 0.25)
+        tagline = texts.get("tagline", "")
+        if tagline:
+            f_t = _get_font(max(int(W*0.03), 14), "semibold")
+            draw.text((W//2, y), tagline, font=f_t,
+                      fill=(*accent_rgba[:3], 220), anchor="mm")
+            y += int(W*0.06)
 
-        lines = _wrap(headline, f_h, W - pad * 2)
-        y = int(H * 0.5)
-        for line in lines[:3]:
-            draw.text((pad, y), line, font=f_h, fill=(255, 255, 255, 255))
-            y += fs_h + 6
+        headline = texts.get("headline", "")
+        if headline:
+            f_h = _get_font(max(int(W*0.065), 30), "bold")
+            for line in _wrap(headline, f_h, int(W*0.85))[:3]:
+                draw.text((W//2, y), line, font=f_h,
+                          fill=(255,255,255,255), anchor="mm")
+                y += int(W*0.065) + int(H*0.01)
 
+        subtext = texts.get("subtext","")
         if subtext:
-            y += 10
-            for sl in _wrap(subtext, f_s, W - pad * 2)[:1]:
-                draw.text((pad, y), sl, font=f_s, fill=(255, 255, 255, 200))
-                y += fs_sub + 8
+            y += int(H*0.02)
+            f_s = _get_font(max(int(W*0.035), 16), "regular")
+            for sl in _wrap(subtext, f_s, int(W*0.8))[:2]:
+                draw.text((W//2, y), sl, font=f_s,
+                          fill=(255,255,255,190), anchor="mm")
+                y += int(W*0.035) + int(H*0.008)
 
-        y += 16
-        btn_w = int(W * 0.42)
-        btn_h = int(fs_h * 1.4)
-        draw.rounded_rectangle(
-            [(pad, y), (pad + btn_w, y + btn_h)],
-            radius=int(btn_h * 0.25), fill=accent_rgb
-        )
-        f_btn = _font(max(int(btn_h * 0.42), 16), "Bold")
-        draw.text(
-            (pad + btn_w // 2, y + btn_h // 2),
-            cta_text, font=f_btn, fill=text_on_accent, anchor="mm"
-        )
+        cta = texts.get("cta","")
+        if cta:
+            f_b = _get_font(max(int(W*0.035), 16), "bold")
+            cta_w = int(draw.textlength(cta, font=f_b) + W*0.1)
+            btn_h = max(int(H*0.06), 44)
+            bx = (W - cta_w)//2
+            by = int(H*0.75)
+            draw.rounded_rectangle([(bx,by),(bx+cta_w,by+btn_h)],
+                                   radius=int(btn_h*0.3), fill=accent_rgba)
+            draw.text((W//2, by+btn_h//2), cta, font=f_b,
+                      fill=text_accent, anchor="mm")
 
-    # Merge overlay onto canvas
     canvas = Image.alpha_composite(canvas, ov)
 
-    # ── Add logo ──
+    # ── Logo ──
     if logo_url:
         try:
             r = requests.get(logo_url, timeout=12)
             if r.status_code == 200:
-                logo_img = Image.open(io.BytesIO(r.content)).convert("RGBA")
-
-                # Target size: 18% of width
-                logo_target_w = int(W * 0.18)
-                logo_target_h = int(H * 0.09)
-                logo_img.thumbnail((logo_target_w, logo_target_h), Image.LANCZOS)
-                lw, lh = logo_img.size
-
-                if layout == "bottom_bar":
-                    # Center vertically in brand bar, right side
-                    bar_y = H - int(H * 0.28)
-                    pad = int(W * 0.04)
-                    lx = W - lw - pad
-                    ly = bar_y + (int(H * 0.28) - lh) // 2
+                logo = Image.open(io.BytesIO(r.content)).convert("RGBA")
+                max_lw, max_lh = int(W*0.20), int(H*0.09)
+                logo.thumbnail((max_lw, max_lh), Image.LANCZOS)
+                lw, lh = logo.size
+                if layout in ("bottom_bar","bottom_gradient"):
+                    bar_y = H - int(H*0.32)
+                    lx = W - lw - int(W*0.04)
+                    ly = bar_y + (int(H*0.32) - lh)//2
                 else:
-                    # Top left
-                    lx = int(W * 0.04)
-                    ly = int(H * 0.03)
-
-                canvas.paste(logo_img, (lx, ly), logo_img)
-                logger.info("logo_added", size=(lw, lh), pos=(lx, ly))
+                    lx = int(W*0.04)
+                    ly = int(H*0.04)
+                canvas.paste(logo, (lx, ly), logo)
+                logger.info("logo_placed", pos=(lx,ly), size=(lw,lh))
         except Exception as e:
             logger.warning("logo_failed", error=str(e))
 
-    # Final JPEG output
-    final = canvas.convert("RGB")
     buf = io.BytesIO()
-    final.save(buf, format="JPEG", quality=95)
+    canvas.convert("RGB").save(buf, format="JPEG", quality=95)
     return buf.getvalue()
-
-
-def compose_from_url(
-    image_url: str,
-    headline: str,
-    subtext: str = "",
-    cta_text: str = "Saiba Mais",
-    logo_url: str = "",
-    brand_color: str = "#1a1a1a",
-    accent_color: str = "#fccc04",
-    layout: str = "bottom_bar",
-) -> Optional[bytes]:
-    try:
-        r = requests.get(image_url, timeout=20)
-        if r.status_code != 200:
-            return None
-        return compose_ad(r.content, headline, subtext, cta_text,
-                          logo_url, brand_color, accent_color, layout)
-    except Exception as e:
-        logger.error("compose_from_url_error", error=str(e))
-        return None

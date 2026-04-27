@@ -95,9 +95,7 @@ def generate_and_store_nano(
     size: str = "square_1_1",
     client_name: str = "geral",
     project_name: str = "criativo",
-    headline: str = "",
-    subtext: str = "",
-    cta_text: str = "",
+    texts: dict = None,
     logo_url: str = "",
     brand_color: str = "",
     accent_color: str = "",
@@ -116,17 +114,15 @@ def generate_and_store_nano(
     img_bytes = images[0]["bytes"]
 
     # ── Compose ad if requested ──
-    if compose and headline:
+    if compose and texts:
         try:
             from .image_compositor import compose_ad
             composed = compose_ad(
                 base_image_bytes=img_bytes,
-                headline=headline,
-                subtext=subtext,
-                cta_text=cta_text or "Saiba Mais",
+                texts=texts,
                 logo_url=logo_url,
-                brand_color=brand_color or "#1A1A2E",
-                accent_color=accent_color or "#E8A020",
+                brand_color=brand_color or "#1a1a1a",
+                accent_color=accent_color or "#fccc04",
                 layout=layout,
             )
             img_bytes = composed
@@ -156,7 +152,7 @@ def generate_and_store_nano(
             "path": path,
             "model": "nano-banana",
             "provider": "freepik",
-            "composed": compose and bool(headline),
+            "composed": compose and bool(texts),
         }
     except Exception as e:
         b64_str = base64.b64encode(img_bytes).decode()

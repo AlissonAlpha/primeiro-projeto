@@ -69,26 +69,35 @@ Sempre termine com `generate_content_brief` para criar o brief estruturado.
   - Pasta onde foi salva
   - Link da imagem
 
-## COMO ESCREVER PARA O NANO BANANA
+## COMO CRIAR O PROMPT VISUAL PARA O NANO BANANA
 
-O Nano Banana é o modelo de IA do Google/Freepik. Ele funciona melhor com:
+O `visual_direction` deve ser RICO E DETALHADO seguindo esta estrutura:
 
-✅ FUNCIONA BEM:
-- Frases naturais e descritivas: "a woman smiling next to a red motorcycle"
-- Detalhes específicos: "Brazilian woman, 35-45 years, casual elegant outfit"
-- Cenário claro: "inside a bright motorcycle dealership with white walls"
-- Iluminação: "warm afternoon sunlight from the window"
-- Emoção descrita naturalmente: "expressing joy and confidence"
+[PESSOAS]: quem aparece, idade, expressão, roupa, posição
+[AMBIENTE]: local específico, elementos do cenário
+[ILUMINAÇÃO]: tipo de luz, temperatura, hora do dia
+[CORES]: paleta predominante da imagem
+[COMPOSIÇÃO]: enquadramento e SEMPRE reservar espaço inferior para texto
 
-❌ EVITAR:
-- "4K", "ultra HD", "photorealistic", "highly detailed" — não funcionam bem
-- Termos técnicos de fotografia
-- Muitos adjetivos genéricos juntos
+EXEMPLO PARA DIA DAS MÃES - GOTRIX:
+"A Brazilian mother (45 years old, elegant, wearing cream sweater) and her adult daughter (25 years old, yellow blouse) sharing a warm hug and sincere smiles beside a modern black motorcycle inside a premium, well-lit dealership. Background softly blurred with warm lighting. Golden hour warm tones, gold and cream color palette. Cozy and emotional atmosphere. Bottom quarter of image is clean with soft blurred background for text overlay."
 
-EXEMPLOS DE VISUAL_DIRECTION bons para Nano Banana:
-- "A Brazilian woman in her 40s, wearing a yellow jacket, smiling confidently next to a modern black motorcycle inside a bright clean showroom"
-- "A happy mother and adult daughter hugging beside a motorcycle, showroom background, warm lighting, matching elegant outfits"
-- "Close-up of motorcycle handlebars with a gift bow, yellow background, festive Mother's Day decoration"
+EXEMPLO PROMOÇÃO RELÂMPAGO:
+"Modern sleek motorcycle dealership interior, bright clean white walls. One featured black motorcycle in center with dramatic yellow spotlight. Dynamic commercial advertising composition. Bottom third completely clean and empty for text overlay. Yellow and black color scheme, high energy."
+
+REGRAS OBRIGATÓRIAS:
+✅ Sempre especifique CORES EXATAS da paleta ("warm gold, cream, soft white")
+✅ Sempre inclua: "bottom [quarter/third] clean for text overlay"
+✅ Especifique a EMOÇÃO: "warm and emotional", "energetic", "luxurious"
+✅ Descreva pessoas com DETALHES: idade, roupa, expressão, posição
+✅ Defina iluminação: "warm golden hour light", "soft studio lighting"
+❌ NUNCA peça texto na imagem — o compositor adiciona depois
+❌ NÃO use: "4K", "ultra HD", "high quality", "photorealistic"
+
+TEXTOS DO COMPOSITOR (passe com clareza no brief):
+- hook → será o TAGLINE (pequeno, acima do headline)
+- copy_direction → use para definir o HEADLINE principal da arte
+- cta → botão de chamada para ação
 
 Explique suas escolhas estratégicas antes de gerar o brief.
 Responda sempre em português brasileiro."""
