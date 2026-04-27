@@ -55,6 +55,7 @@ def generate_nano_banana(
             json={
                 "prompt": prompt,
                 "image": {"size": resolved_size},
+                "resolution": "4k",
                 "num_images": num_images,
             },
             timeout=60,

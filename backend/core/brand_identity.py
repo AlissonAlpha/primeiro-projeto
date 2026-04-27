@@ -114,17 +114,36 @@ def save_brand_settings(
         return {"success": False, "error": str(e)}
 
 
-def get_brand_colors_prompt(ad_account_id: str) -> str:
-    """Get saved brand color prompt for use in image generation."""
+def get_brand_colors_prompt(client_name_or_account_id: str) -> str:
+    """Get saved brand color prompt by client name or ad_account_id."""
     try:
-        r = req_lib.get(
-            f"{SUPABASE_URL}/rest/v1/account_settings",
-            headers={"Authorization": f"Bearer {settings.SUPABASE_KEY}", "apikey": settings.SUPABASE_KEY},
-            params={"ad_account_id": f"eq.{ad_account_id}", "limit": "1"},
-        )
+        h = {"Authorization": f"Bearer {settings.SUPABASE_KEY}", "apikey": settings.SUPABASE_KEY}
+        # Try by account_id first
+        r = req_lib.get(f"{SUPABASE_URL}/rest/v1/account_settings", headers=h,
+            params={"ad_account_id": f"eq.{client_name_or_account_id}", "limit": "1"})
         data = r.json()
         if data:
             return data[0].get("brand_colors", "")
+        # Fallback: search by account_name (case-insensitive)
+        r2 = req_lib.get(f"{SUPABASE_URL}/rest/v1/account_settings", headers=h,
+            params={"account_name": f"ilike.{client_name_or_account_id}", "limit": "1"})
+        data2 = r2.json()
+        if data2:
+            return data2[0].get("brand_colors", "")
+        return ""
+    except Exception:
+        return ""
+
+
+def get_brand_logo_url(client_name: str) -> str:
+    """Get saved logo URL by client name."""
+    try:
+        h = {"Authorization": f"Bearer {settings.SUPABASE_KEY}", "apikey": settings.SUPABASE_KEY}
+        r = req_lib.get(f"{SUPABASE_URL}/rest/v1/account_settings", headers=h,
+            params={"account_name": f"ilike.{client_name}", "limit": "1"})
+        data = r.json()
+        if data:
+            return data[0].get("logo_url", "")
         return ""
     except Exception:
         return ""

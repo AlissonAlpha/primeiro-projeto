@@ -9,6 +9,68 @@ logger = structlog.get_logger()
 
 
 @tool
+def save_brand_from_logo_url(
+    client_name: str,
+    logo_url: str,
+    ad_account_id: str = "",
+) -> dict:
+    """Extract brand colors from a logo URL and save to brand settings.
+    Use this when the user shares a logo image URL (from 📎 upload).
+    The colors will be automatically used in all future image generations for this client."""
+    try:
+        import requests as req
+        from core.brand_identity import extract_colors_from_bytes, save_brand_settings, store_brand_logo
+        from core.config import settings as cfg
+
+        # Download the logo
+        r = req.get(logo_url, timeout=15)
+        if r.status_code != 200:
+            return {"success": False, "error": f"Não consegui baixar a logo: {r.status_code}"}
+
+        img_bytes = r.content
+
+        # Store logo in Supabase
+        logo_result = store_brand_logo(img_bytes, client_name, "logo.jpg")
+
+        # Extract colors
+        colors = extract_colors_from_bytes(img_bytes)
+        if not colors.get("success"):
+            return {"success": False, "error": colors.get("error")}
+
+        # Save to account_settings
+        if ad_account_id:
+            save_brand_settings(ad_account_id, client_name, logo_result.get("logo_url", logo_url), colors)
+        else:
+            # Save by client name only
+            import requests as rq
+            SUPABASE_URL = cfg.SUPABASE_URL
+            HEADERS = {
+                "Authorization": f"Bearer {cfg.SUPABASE_KEY}",
+                "apikey": cfg.SUPABASE_KEY,
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates,return=representation",
+            }
+            rq.post(f"{SUPABASE_URL}/rest/v1/account_settings", headers=HEADERS, json={
+                "ad_account_id": f"brand_{client_name.lower().replace(' ', '_')}",
+                "account_name": client_name,
+                "logo_url": logo_result.get("logo_url", logo_url),
+                "brand_colors": colors.get("prompt_colors", ""),
+                "brand_palette": str(colors.get("palette", [])),
+            })
+
+        return {
+            "success": True,
+            "client": client_name,
+            "dominant_color": colors.get("dominant"),
+            "palette": colors.get("palette", []),
+            "prompt_colors": colors.get("prompt_colors", ""),
+            "message": f"Cores da marca {client_name} extraídas e salvas! Serão usadas em todas as próximas artes.",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@tool
 def search_trends(query: str, segment: str = "") -> dict:
     """Search for current trends, news and viral content in a segment.
     Use this to find hooks, opportunities and relevant topics for content creation."""
@@ -130,11 +192,13 @@ def generate_content_brief(
     aspect_ratio = aspect_map.get(format.lower(), aspect_map.get(platform.lower(), "square_1_1"))
 
     image_prompt = (
-        f"Professional marketing photo for {segment}. "
-        f"Theme: {theme}. Visual: {visual_direction}. "
-        f"Photorealistic, high quality, vibrant colors, "
-        f"suitable for {platform} {format} advertising in Brazil. "
-        f"Emotion: {emotion}. No text, no watermark."
+        f"{visual_direction}. "
+        f"Professional commercial marketing photography for {segment} in Brazil. "
+        f"Theme: {theme}. Emotion conveyed: {emotion}. "
+        f"Ultra high quality 4K, sharp focus, perfect composition, "
+        f"professional studio or natural lighting, vibrant and engaging, "
+        f"suitable for {platform} {format} advertising. "
+        f"No text overlays, no watermarks, no logos."
     )
 
     from core.content_brief import ContentBrief
@@ -184,6 +248,7 @@ def generate_content_brief(
 
 
 STRATEGIST_TOOLS = [
+    save_brand_from_logo_url,
     search_trends,
     analyze_competitors,
     get_commemorative_dates,
