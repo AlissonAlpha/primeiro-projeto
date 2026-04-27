@@ -75,3 +75,21 @@ async def chat_ceo(request: ChatRequest):
 async def delete_session(session_id: str):
     clear_session(session_id)
     return {"success": True}
+
+
+@router.get("/traffic-manager/account-info/{ad_account_id}")
+async def get_account_info(ad_account_id: str):
+    from core.account_settings import get_account_settings_sync
+    try:
+        cfg = get_account_settings_sync(ad_account_id)
+        if not cfg:
+            return {"found": False}
+        return {
+            "found": True,
+            "whatsapp_number": cfg.get("whatsapp_number"),
+            "website_url": cfg.get("website_url"),
+            "facebook_page_id": cfg.get("facebook_page_id"),
+            "pixel_id": cfg.get("pixel_id"),
+        }
+    except Exception as e:
+        return {"found": False, "error": str(e)}

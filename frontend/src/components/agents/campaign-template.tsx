@@ -37,7 +37,9 @@ interface TemplateData {
   locationKey: string;
   radiusKm: string;
   interests: string;
+  destinationType: "whatsapp" | "link";
   destination: string;
+  savedWhatsapp: string;
   adSets: AdSetConfig[];
 }
 
@@ -77,6 +79,10 @@ function buildMessage(data: TemplateData): string {
     ? `${data.location} (key: ${data.locationKey}), raio: ${data.radiusKm || "0"}km`
     : "Brasil inteiro";
 
+  const destFinal = data.destinationType === "whatsapp"
+    ? (data.savedWhatsapp || "buscar whatsapp vinculado da conta")
+    : data.destination;
+
   const budget = data.budgetType === "CBO"
     ? `CBO — R$${data.totalBudget}/dia total para a campanha`
     : `ABO — orçamento individual por conjunto`;
@@ -97,7 +103,7 @@ function buildMessage(data: TemplateData): string {
     `ORÇAMENTO: ${budget}`,
     `LOCALIZAÇÃO: ${loc}`,
     `PÚBLICO: ${ageStr}, ${genderStr}, ${audience}`,
-    `DESTINO: ${data.destination || "https://wa.me/5517991234567"}`,
+    `DESTINO: ${destFinal}`,
     `ESTRUTURA: ${data.adSets.length} conjunto(s)`,
     ``,
   ];
@@ -123,7 +129,8 @@ function buildMessage(data: TemplateData): string {
 function validate(data: TemplateData): string[] {
   const errors: string[] = [];
   if (!data.account) errors.push("Selecione uma conta de anúncios");
-  if (!data.destination) errors.push("Informe o destino (WhatsApp ou URL)");
+  const dest = data.destinationType === "whatsapp" ? data.savedWhatsapp : data.destination;
+  if (!dest && data.destinationType === "link") errors.push("Informe a URL de destino");
   data.adSets.forEach((set, si) => {
     if (data.budgetType === "ABO" && (!set.budget || Number(set.budget) < 5))
       errors.push(`Conjunto ${si + 1}: orçamento mínimo R$5/dia`);
@@ -151,9 +158,9 @@ export function CampaignTemplate({ onSend }: CampaignTemplateProps) {
   const [data, setData] = useState<TemplateData>({
     account: null, objective: "leads", campaignName: "",
     budgetType: "ABO", totalBudget: "60",
-    audienceType: "advantage", ageMin: "18", ageMax: "65",
+    audienceType: "advantage", ageMin: "18", ageMax: "45",
     gender: "", location: "", locationKey: "", radiusKm: "30",
-    interests: "", destination: "",
+    interests: "", destinationType: "whatsapp", destination: "", savedWhatsapp: "",
     adSets: [EMPTY_ADSET(0)],
   });
 
@@ -163,9 +170,25 @@ export function CampaignTemplate({ onSend }: CampaignTemplateProps) {
       const active = a.filter(x => x.status === "Ativo");
       setAccounts(active);
       const gotrix = active.find(x => x.name.toLowerCase().includes("gotrix"));
-      if (gotrix && !data.account) setField("account", gotrix);
+      if (gotrix && !data.account) {
+        setField("account", gotrix);
+        fetchAccountWhatsapp(gotrix.id);
+      }
     }).catch(() => {});
   }, [open]);
+
+  async function fetchAccountWhatsapp(accountId: string) {
+    try {
+      const res = await fetch(`${API_URL}/agents/traffic-manager/account-info/${accountId}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.whatsapp_number) {
+          const url = `https://wa.me/${d.whatsapp_number}`;
+          setData(p => ({ ...p, savedWhatsapp: url, destination: p.destinationType === "whatsapp" ? url : p.destination }));
+        }
+      }
+    } catch {}
+  }
 
   function setField(key: keyof TemplateData, value: unknown) {
     setData(p => ({ ...p, [key]: value }));
@@ -277,7 +300,12 @@ export function CampaignTemplate({ onSend }: CampaignTemplateProps) {
               <div>
                 <label className={lbl}>Conta *</label>
                 <select className={inp} value={data.account?.id || ""}
-                  onChange={e => setField("account", accounts.find(a => a.id === e.target.value) || null)}>
+                  onChange={e => {
+                    const acc = accounts.find(a => a.id === e.target.value) || null;
+                    setField("account", acc);
+                    setData(p => ({ ...p, account: acc, savedWhatsapp: "", destination: p.destinationType === "whatsapp" ? "" : p.destination }));
+                    if (acc) fetchAccountWhatsapp(acc.id);
+                  }}>
                   <option value="">Selecionar conta...</option>
                   {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
@@ -290,18 +318,47 @@ export function CampaignTemplate({ onSend }: CampaignTemplateProps) {
               </div>
             </div>
 
-            {/* Name + Destination */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={lbl}>Nome da campanha</label>
-                <input className={inp} placeholder="Ex: Gotrix | Leads | Mai 2026"
-                  value={data.campaignName} onChange={e => setField("campaignName", e.target.value)} />
+            {/* Name */}
+            <div>
+              <label className={lbl}>Nome da campanha</label>
+              <input className={inp} placeholder="Ex: Gotrix | Leads | Mai 2026"
+                value={data.campaignName} onChange={e => setField("campaignName", e.target.value)} />
+            </div>
+
+            {/* Destination */}
+            <div>
+              <label className={lbl}>Destino do anúncio *</label>
+              <div className="flex gap-2 mb-2">
+                <button className={tabBtn(data.destinationType === "whatsapp")}
+                  onClick={() => {
+                    setField("destinationType", "whatsapp");
+                    if (data.savedWhatsapp) setField("destination", data.savedWhatsapp);
+                  }}>
+                  💬 WhatsApp vinculado
+                </button>
+                <button className={tabBtn(data.destinationType === "link")}
+                  onClick={() => { setField("destinationType", "link"); setField("destination", ""); }}>
+                  🔗 Link / URL
+                </button>
               </div>
-              <div>
-                <label className={lbl}>Destino *</label>
-                <input className={inp} placeholder="https://wa.me/55... ou URL do site"
+              {data.destinationType === "whatsapp" ? (
+                data.savedWhatsapp ? (
+                  <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span className="text-sm text-emerald-400">{data.savedWhatsapp}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <span className="text-xs text-amber-400">
+                      WhatsApp não encontrado para esta conta. O agente vai buscar automaticamente.
+                    </span>
+                  </div>
+                )
+              ) : (
+                <input className={inp} placeholder="https://seusite.com.br"
                   value={data.destination} onChange={e => setField("destination", e.target.value)} />
-              </div>
+              )}
             </div>
 
             {/* Budget */}
@@ -345,12 +402,21 @@ export function CampaignTemplate({ onSend }: CampaignTemplateProps) {
                 </div>
                 <div>
                   <label className={lbl}>Idade máx.</label>
-                  <input type="number" className={inp}
-                    value={data.audienceType === "advantage" ? "65" : data.ageMax}
-                    disabled={data.audienceType === "advantage"}
-                    onChange={e => setField("ageMax", e.target.value)} />
-                  {data.audienceType === "advantage" && (
-                    <p className="text-xs text-muted-foreground mt-1">Fixo pelo Meta</p>
+                  {data.audienceType === "advantage" ? (
+                    <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/40 rounded-lg px-3 py-2">
+                      <span className="text-sm text-muted-foreground">65</span>
+                      <span className="text-xs text-muted-foreground ml-1">(fixo Meta)</span>
+                    </div>
+                  ) : (
+                    <input
+                      key="age-max-manual"
+                      type="number"
+                      className={inp}
+                      value={data.ageMax}
+                      min={data.ageMin || "18"}
+                      max="65"
+                      onChange={e => setField("ageMax", e.target.value)}
+                    />
                   )}
                 </div>
                 <div>
