@@ -10,6 +10,22 @@ logger = structlog.get_logger()
 FONT_DIR = "/tmp/agency_fonts"
 os.makedirs(FONT_DIR, exist_ok=True)
 
+# Emoji map → clean text
+_EMOJI_MAP = {
+    "❤️": "", "🌸": "", "✨": "*", "🏍️": "", "🎁": "",
+    "💛": "", "🤍": "", "💝": "", "💕": "", "🌺": "",
+    "⭐": "*", "🔥": "", "💥": "", "🎉": "", "🎊": "",
+}
+
+def _clean(text: str) -> str:
+    """Remove emojis that Pillow can't render."""
+    import re
+    for emoji, replacement in _EMOJI_MAP.items():
+        text = text.replace(emoji, replacement)
+    # Remove any remaining emoji/unicode symbols outside Latin + common chars
+    text = re.sub(r'[^\x00-\x7F\xC0-\xFFÀ-ɏḀ-ỿ]', '', text)
+    return text.strip()
+
 FONT_URLS = {
     "bold":     "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-Bold.ttf",
     "semibold": "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat-SemiBold.ttf",
@@ -87,65 +103,72 @@ def compose_ad(
     pad = int(W * 0.055)
 
     if layout in ("bottom_bar", "bottom_gradient"):
-        bar_h = int(H * 0.32)
+        # Bar height: 30% of image
+        bar_h = int(H * 0.30)
         bar_y = H - bar_h
 
-        if layout == "bottom_bar":
-            # Gradient fade then solid
-            for i in range(80):
-                a = int(brand_rgba[3] * (i/80)**1.5)
-                draw.rectangle([(0, bar_y-80+i),(W, bar_y-79+i)], fill=(*brand_rgba[:3], a))
-            draw.rectangle([(0, bar_y),(W, H)], fill=brand_rgba)
-            draw.rectangle([(0, bar_y),(W, bar_y+5)], fill=accent_rgba)
-        else:
-            for i in range(bar_h + 100):
-                a = int(220 * (i/(bar_h+100))**1.3)
-                draw.rectangle([(0, H-bar_h-100+i),(W, H-bar_h-99+i)], fill=(*brand_rgba[:3], a))
+        # Gradient fade (60px) then solid bar
+        for i in range(60):
+            a = int(brand_rgba[3] * (i / 60) ** 1.8)
+            draw.rectangle([(0, bar_y - 60 + i), (W, bar_y - 59 + i)],
+                           fill=(*brand_rgba[:3], a))
+        draw.rectangle([(0, bar_y), (W, H)], fill=brand_rgba)
+        # Accent line separator (6px)
+        draw.rectangle([(0, bar_y), (W, bar_y + 6)], fill=accent_rgba)
 
-        logo_w_reserve = int(W * 0.26) if logo_url else 0
-        text_w = W - pad*2 - logo_w_reserve
+        # Reserve right side for logo
+        logo_w_reserve = int(W * 0.28) if logo_url else 0
+        text_w = W - pad * 2 - logo_w_reserve
 
-        y = bar_y + int(bar_h * 0.09)
+        # Font sizes relative to image width
+        fs_tag = max(int(W * 0.028), 16)
+        fs_head = max(int(W * 0.062), 34)
+        fs_sub = max(int(W * 0.034), 18)
+        fs_btn = max(int(W * 0.034), 18)
 
-        # Tagline (small, accent color)
-        tagline = texts.get("tagline", "")
+        f_tag = _get_font(fs_tag, "semibold")
+        f_head = _get_font(fs_head, "bold")
+        f_sub = _get_font(fs_sub, "regular")
+        f_btn = _get_font(fs_btn, "bold")
+
+        # Start text at top of bar + small padding
+        y = bar_y + int(bar_h * 0.10)
+
+        # Tagline — accent color, uppercase
+        tagline = _clean(texts.get("tagline", ""))
         if tagline:
-            f_tag = _get_font(max(int(W*0.025), 13), "semibold")
-            tag_color = (*accent_rgba[:3], 220)
-            draw.text((pad, y), tagline.upper(), font=f_tag, fill=tag_color)
-            y += int(W*0.025) + int(H*0.012)
+            draw.text((pad, y), tagline.upper(),
+                      font=f_tag, fill=(*accent_rgba[:3], 230))
+            y += fs_tag + int(fs_tag * 0.6)
 
-        # Headline (large, white/contrast)
-        headline = texts.get("headline", "")
+        # Headline — large, white, max 2 lines
+        headline = _clean(texts.get("headline", ""))
         if headline:
-            f_h = _get_font(max(int(W*0.052), 26), "bold")
-            lines = _wrap(headline, f_h, text_w)
-            for line in lines[:2]:
-                draw.text((pad, y), line, font=f_h, fill=text_main)
-                y += int(W*0.052) + int(H*0.008)
+            for line in _wrap(headline, f_head, text_w)[:2]:
+                draw.text((pad, y), line, font=f_head, fill=text_main)
+                y += fs_head + int(fs_head * 0.15)
 
-        # Subtext
-        subtext = texts.get("subtext", "")
+        # Subtext — medium, slightly transparent
+        subtext = _clean(texts.get("subtext", ""))
         if subtext:
-            y += int(H*0.006)
-            f_s = _get_font(max(int(W*0.031), 15), "regular")
-            sub_color = (*text_main[:3], 190)
-            for sl in _wrap(subtext, f_s, text_w)[:2]:
-                draw.text((pad, y), sl, font=f_s, fill=sub_color)
-                y += int(W*0.031) + int(H*0.006)
+            y += int(fs_head * 0.15)
+            sub_color = (*text_main[:3], 200)
+            for sl in _wrap(subtext, f_sub, text_w)[:1]:
+                draw.text((pad, y), sl, font=f_sub, fill=sub_color)
 
-        # CTA button
-        cta = texts.get("cta", "")
+        # CTA button — accent color, bottom-left, above bottom edge
+        cta = _clean(texts.get("cta", ""))
         if cta:
-            f_btn = _get_font(max(int(W*0.032), 16), "bold")
-            cta_w = int(draw.textlength(cta, font=f_btn) + W*0.08)
-            btn_h = max(int(H*0.055), 40)
+            cta_w = int(draw.textlength(cta, font=f_btn) + W * 0.09)
+            btn_h = max(int(H * 0.052), 42)
             btn_x = pad
-            btn_y = H - pad - btn_h
-            draw.rounded_rectangle([(btn_x, btn_y),(btn_x+cta_w, btn_y+btn_h)],
-                                   radius=int(btn_h*0.3), fill=accent_rgba)
-            draw.text((btn_x + cta_w//2, btn_y + btn_h//2), cta,
-                      font=f_btn, fill=text_accent, anchor="mm")
+            btn_y = H - int(H * 0.04) - btn_h
+            draw.rounded_rectangle(
+                [(btn_x, btn_y), (btn_x + cta_w, btn_y + btn_h)],
+                radius=int(btn_h * 0.28), fill=accent_rgba
+            )
+            draw.text((btn_x + cta_w // 2, btn_y + btn_h // 2),
+                      cta, font=f_btn, fill=text_accent, anchor="mm")
 
     elif layout == "overlay_center":
         # Full overlay with centered text
