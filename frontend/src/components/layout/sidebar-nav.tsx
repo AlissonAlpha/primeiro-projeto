@@ -13,6 +13,7 @@ import {
   Zap,
   Sparkles,
   ImageIcon,
+  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ const navItems = [
       { label: "Pipeline Criativo", href: "/pipeline", icon: Zap },
       { label: "Estrategista", href: "/agents/content-strategist", icon: Sparkles },
       { label: "Criador de Imagens", href: "/agents/image-creator", icon: ImageIcon },
+      { label: "Biblioteca de Criativos", href: "/library", icon: FolderOpen },
     ],
   },
 ];
