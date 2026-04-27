@@ -28,54 +28,62 @@ class DeleteRequest(BaseModel):
     paths: List[str]
 
 
+def _delete_paths(paths: list) -> dict:
+    """Delete files using Supabase Storage bulk delete API."""
+    r = requests.delete(
+        f"{SUPABASE_URL}/storage/v1/object/{BUCKET}",
+        headers=HEADERS,
+        json={"prefixes": paths},
+    )
+    if r.status_code not in (200, 204):
+        raise Exception(f"Supabase error {r.status_code}: {r.text}")
+    return r.json()
+
+
+def _list_all_files_in_folder(prefix: str) -> list:
+    """Recursively list all files inside a folder prefix."""
+    clean = prefix.rstrip("/") + "/"
+    r = requests.post(
+        f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET}",
+        headers=HEADERS,
+        json={"prefix": clean, "limit": 1000},
+    )
+    items = r.json()
+    paths = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name", "")
+        if not name:
+            continue
+        full = f"{clean}{name}"
+        if item.get("id"):
+            paths.append(full)
+        else:
+            # It's a sub-folder — recurse
+            paths.extend(_list_all_files_in_folder(full))
+    return paths
+
+
 @router.delete("/files")
 async def delete_files(body: DeleteRequest):
     """Delete one or more files from Supabase Storage."""
     try:
-        r = requests.delete(
-            f"{SUPABASE_URL}/storage/v1/object/{BUCKET}",
-            headers=HEADERS,
-            json=body.paths,
-        )
-        if r.status_code not in (200, 204):
-            raise HTTPException(400, f"Delete failed: {r.text}")
-        return {"success": True, "deleted": len(body.paths), "paths": body.paths}
-    except HTTPException:
-        raise
+        _delete_paths(body.paths)
+        return {"success": True, "deleted": len(body.paths)}
     except Exception as e:
         raise HTTPException(500, str(e))
 
 
 @router.delete("/folder")
 async def delete_folder(prefix: str):
-    """Delete all files inside a folder (by prefix)."""
+    """Delete all files inside a folder (by prefix), including sub-folders."""
     try:
-        # List all files in the folder
-        r = requests.post(
-            f"{SUPABASE_URL}/storage/v1/object/list/{BUCKET}",
-            headers=HEADERS,
-            json={"prefix": prefix if prefix.endswith("/") else f"{prefix}/", "limit": 1000},
-        )
-        items = r.json()
-        paths = [
-            f"{prefix}/{item['name']}" if not prefix.endswith("/") else f"{prefix}{item['name']}"
-            for item in items
-            if isinstance(item, dict) and item.get("id")
-        ]
+        paths = _list_all_files_in_folder(prefix)
         if not paths:
             return {"success": True, "deleted": 0, "message": "Pasta vazia ou não encontrada."}
-
-        # Delete all files
-        rd = requests.delete(
-            f"{SUPABASE_URL}/storage/v1/object/{BUCKET}",
-            headers=HEADERS,
-            json=paths,
-        )
-        if rd.status_code not in (200, 204):
-            raise HTTPException(400, f"Delete failed: {rd.text}")
+        _delete_paths(paths)
         return {"success": True, "deleted": len(paths), "folder": prefix}
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(500, str(e))
 
