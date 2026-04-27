@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Megaphone, ChevronDown, Circle, RefreshCw } from "lucide-react";
 import { AgentChat } from "@/components/agents/agent-chat";
+import { CampaignTemplate } from "@/components/agents/campaign-template";
 import { listAdAccounts, type AdAccount } from "@/lib/api";
 
 const suggestions = [
   "Liste todas as minhas contas de anúncio",
   "Crie uma campanha de leads para a Gotrix, R$50/dia",
   "Mostre as campanhas ativas da Gotrix",
-  "Como estruturar uma campanha de vendas no Meta?",
+  "Analise a performance da conta Gotrix",
 ];
 
 export default function TrafficManagerPage() {
@@ -17,6 +18,7 @@ export default function TrafficManagerPage() {
   const [selected, setSelected] = useState<AdAccount | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const sendRef = useRef<((msg: string) => void) | null>(null);
 
   useEffect(() => {
     listAdAccounts()
@@ -36,8 +38,8 @@ export default function TrafficManagerPage() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Account selector bar */}
-      <div className="px-6 py-3 border-b border-border/50 bg-background flex items-center gap-3">
+      {/* Top bar */}
+      <div className="px-6 py-3 border-b border-border/50 bg-background flex items-center gap-3 flex-wrap">
         <span className="text-xs text-muted-foreground font-medium">Conta Meta Ads:</span>
 
         {loading ? (
@@ -53,9 +55,7 @@ export default function TrafficManagerPage() {
             >
               <Circle className="w-2 h-2 fill-emerald-400 text-emerald-400" />
               <span className="font-medium">{selected?.name || "Selecionar conta"}</span>
-              {selected && (
-                <span className="text-xs text-muted-foreground">{selected.id}</span>
-              )}
+              {selected && <span className="text-xs text-muted-foreground">{selected.id}</span>}
               <ChevronDown className="w-3 h-3 text-muted-foreground ml-1" />
             </button>
 
@@ -68,15 +68,10 @@ export default function TrafficManagerPage() {
                 </div>
                 <div className="max-h-64 overflow-y-auto">
                   {accounts.map((acc) => (
-                    <button
-                      key={acc.id}
-                      onClick={() => { setSelected(acc); setOpen(false); }}
-                      className={`w-full text-left px-3 py-2.5 hover:bg-accent transition-colors flex items-center justify-between group ${selected?.id === acc.id ? "bg-violet-500/10" : ""}`}
-                    >
+                    <button key={acc.id} onClick={() => { setSelected(acc); setOpen(false); }}
+                      className={`w-full text-left px-3 py-2.5 hover:bg-accent transition-colors flex items-center justify-between ${selected?.id === acc.id ? "bg-violet-500/10" : ""}`}>
                       <div>
-                        <p className={`text-sm font-medium ${selected?.id === acc.id ? "text-violet-400" : ""}`}>
-                          {acc.name}
-                        </p>
+                        <p className={`text-sm font-medium ${selected?.id === acc.id ? "text-violet-400" : ""}`}>{acc.name}</p>
                         <p className="text-xs text-muted-foreground">{acc.id}</p>
                       </div>
                       <span className="text-xs text-muted-foreground">{acc.currency}</span>
@@ -87,6 +82,11 @@ export default function TrafficManagerPage() {
             )}
           </div>
         )}
+
+        {/* Template button */}
+        <div className="ml-auto">
+          <CampaignTemplate onSend={(msg) => sendRef.current?.(msg)} />
+        </div>
       </div>
 
       {/* Chat */}
@@ -99,6 +99,7 @@ export default function TrafficManagerPage() {
           gradientClass="from-blue-600 to-cyan-700"
           suggestions={suggestions}
           systemContext={accountContext}
+          sendRef={sendRef}
         />
       </div>
     </div>

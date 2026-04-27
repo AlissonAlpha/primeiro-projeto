@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, MutableRefObject } from "react";
 import { Send, Loader2, Circle, RotateCcw, Paperclip, X, Image, FileVideo, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +30,7 @@ interface AgentChatProps {
   gradientClass: string;
   suggestions?: string[];
   systemContext?: string;
+  sendRef?: MutableRefObject<((msg: string) => void) | null>;
 }
 
 const SESSION_KEY_PREFIX = "chat_session_";
@@ -53,7 +54,7 @@ function loadPersistedSession(agentType: string): { sessionId: string; messages:
 
 export function AgentChat({
   agentType, agentName, agentDescription, agentIcon,
-  gradientClass, suggestions = [], systemContext = "",
+  gradientClass, suggestions = [], systemContext = "", sendRef,
 }: AgentChatProps) {
   const persisted = loadPersistedSession(agentType);
   const [messages, setMessages] = useState<Message[]>(persisted.messages);
@@ -82,6 +83,11 @@ export function AgentChat({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Expose sendMessage to parent via ref
+  useEffect(() => {
+    if (sendRef) sendRef.current = (msg: string) => sendMessage(msg);
+  });
 
   const uploadFiles = useCallback(async (files: File[]): Promise<UploadedFile[]> => {
     const uploaded: UploadedFile[] = [];

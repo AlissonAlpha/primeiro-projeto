@@ -13,6 +13,23 @@ from core.meta_insights import (
 router = APIRouter(prefix="/meta", tags=["meta-ads"])
 
 
+@router.get("/search-locations")
+async def search_locations_endpoint(q: str, country_code: str = "BR"):
+    import requests as req
+    from core.config import settings
+    r = req.get("https://graph.facebook.com/v21.0/search",
+        params={"type": "adgeolocation", "q": q, "country_code": country_code,
+                "access_token": settings.META_ACCESS_TOKEN, "limit": 8})
+    data = r.json()
+    if "error" in data:
+        raise HTTPException(400, data["error"]["message"])
+    locations = [
+        {"key": l["key"], "name": l["name"], "type": l["type"], "region": l.get("region", "")}
+        for l in data.get("data", []) if l.get("type") in ("city", "region", "country")
+    ]
+    return {"locations": locations}
+
+
 @router.get("/accounts")
 async def list_accounts():
     try:
