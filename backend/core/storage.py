@@ -24,9 +24,20 @@ async def ensure_bucket():
 
 def _slugify(text: str) -> str:
     import re, unicodedata
+
+    # Remove suffixes that create duplicate folders
+    _noise = r"\b(test|teste|final|compositor|debug|4k|2k|hd|pro|v\d+|\d+)\b"
+    text = re.sub(_noise, "", text, flags=re.IGNORECASE)
+
     text = unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode()
     text = re.sub(r"[^\w\s-]", "", text.lower())
-    return re.sub(r"[-\s]+", "-", text).strip("-")[:40]
+    slug = re.sub(r"[-\s]+", "-", text).strip("-")
+
+    # Limit to first 3 words to keep folder names clean
+    parts = slug.split("-")
+    slug = "-".join(p for p in parts[:4] if p)
+
+    return slug[:35]
 
 
 async def upload_creative(
