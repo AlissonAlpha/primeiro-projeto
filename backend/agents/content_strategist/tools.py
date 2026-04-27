@@ -106,43 +106,98 @@ def generate_content_brief(
     visual_direction: str,
     copy_direction: str,
     cta: str,
+    client_name: str = "geral",
     references: list[str] = [],
+    generate_image: bool = True,
 ) -> dict:
-    """Generate a complete structured Content Brief to be sent to the Image Creator and Social Media agents.
-    This is the final output of the strategist — a complete creative brief."""
-    logger.info("generating_content_brief", segment=segment, theme=theme)
+    """Generate a complete Content Brief AND automatically trigger image generation.
+    Always set generate_image=True so the image is created immediately after the brief.
+    client_name: use the actual client/brand name for folder organization (e.g. 'Gotrix')."""
+    logger.info("generating_content_brief", segment=segment, theme=theme, client=client_name)
 
-    # Build optimized image generation prompt
+    # Build optimized image prompt
+    # Freepik Mystic valid aspect ratios
+    aspect_map = {
+        "instagram": "portrait_2_3",      # Feed Instagram (similar to 4:5)
+        "stories": "social_story_9_16",   # Stories/Reels
+        "reels": "social_story_9_16",     # Reels
+        "facebook": "square_1_1",         # Facebook feed
+        "linkedin": "widescreen_16_9",    # LinkedIn
+        "feed": "portrait_2_3",           # Generic feed
+        "story": "social_story_9_16",
+        "carrossel": "square_1_1",
+    }
+    aspect_ratio = aspect_map.get(format.lower(), aspect_map.get(platform.lower(), "square_1_1"))
+
     image_prompt = (
         f"Professional marketing photo for {segment}. "
-        f"Theme: {theme}. "
-        f"Visual: {visual_direction}. "
-        f"Style: photorealistic, high quality, vibrant colors, "
-        f"suitable for social media {platform} advertising. "
-        f"Emotion: {emotion}. No text overlays."
+        f"Theme: {theme}. Visual: {visual_direction}. "
+        f"Photorealistic, high quality, vibrant colors, "
+        f"suitable for {platform} {format} advertising in Brazil. "
+        f"Emotion: {emotion}. No text, no watermark."
     )
 
     from core.content_brief import ContentBrief
     brief = ContentBrief(
-        segment=segment,
-        theme=theme,
-        hook=hook,
-        emotion=emotion,
-        format=format,
-        platform=platform,
-        copy_direction=copy_direction,
-        visual_direction=visual_direction,
-        image_prompt=image_prompt,
-        cta=cta,
-        references=references,
-        status="brief_ready",
+        segment=segment, theme=theme, hook=hook, emotion=emotion,
+        format=format, platform=platform, copy_direction=copy_direction,
+        visual_direction=visual_direction, image_prompt=image_prompt,
+        cta=cta, references=references, status="brief_ready",
     )
 
-    return {
+    result = {
         "success": True,
+        "brief_id": brief.id,
         "brief": brief.model_dump(),
-        "next_step": "Enviar para o Criador de Imagens para gerar o visual.",
+        "image_status": "pending",
+        "image_url": None,
+        "folder": None,
     }
+
+    # Auto-trigger image generation
+    if generate_image:
+        try:
+            from core.freepik_client import generate_image_sync
+            import asyncio, httpx
+            from core.storage import upload_creative
+
+            img = generate_image_sync(image_prompt, aspect_ratio, "photo")
+            if img.get("success") and img.get("image_url"):
+                # Download and store organized by client/project
+                try:
+                    import httpx as _httpx
+                    from core.storage import _slugify, SUPABASE_STORAGE_URL, BUCKET, HEADERS
+                    import uuid
+                    resp = _httpx.get(img["image_url"], timeout=30)
+                    # Upload sync via requests
+                    client_slug = _slugify(client_name)
+                    project_slug = _slugify(theme)
+                    fname = f"{uuid.uuid4().hex[:8]}.jpg"
+                    path = f"{client_slug}/{project_slug}/{fname}"
+                    up = _httpx.post(
+                        f"{SUPABASE_STORAGE_URL}/object/{BUCKET}/{path}",
+                        headers={**HEADERS, "Content-Type": "image/jpeg"},
+                        content=resp.content, timeout=30,
+                    )
+                    from core.config import settings
+                    pub_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{path}"
+                    result["image_url"] = pub_url
+                    result["folder"] = f"{client_slug}/{project_slug}/"
+                    result["image_status"] = "generated"
+                    brief.generated_image_url = pub_url
+                    brief.status = "image_generated"
+                except Exception as store_err:
+                    result["image_url"] = img["image_url"]
+                    result["image_status"] = "generated"
+                    result["folder"] = f"{client_name}/{theme}/"
+            else:
+                result["image_status"] = "failed"
+                result["image_error"] = img.get("error", "Unknown error")
+        except Exception as e:
+            result["image_status"] = "failed"
+            result["image_error"] = str(e)
+
+    return result
 
 
 STRATEGIST_TOOLS = [

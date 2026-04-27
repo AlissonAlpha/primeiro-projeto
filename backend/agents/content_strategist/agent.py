@@ -53,6 +53,15 @@ Facebook:
 ## SAÍDA ESPERADA
 
 Sempre termine com `generate_content_brief` para criar o brief estruturado.
+- Passe `generate_image=True` (padrão) para gerar a imagem automaticamente.
+- Passe `client_name` com o nome real do cliente/marca (ex: "Gotrix", "Alpha Cast").
+  Isso organiza as imagens em pastas no storage: {cliente}/{tema}/imagem.jpg
+- Após o brief ser gerado, informe ao usuário:
+  - O brief foi criado ✅
+  - A imagem foi gerada e está salva em qual pasta 🎨
+  - O link da imagem para visualizar
+  - Próximo passo: Social Media Agent vai criar a legenda
+
 Explique suas escolhas estratégicas antes de gerar o brief.
 Responda sempre em português brasileiro."""
 

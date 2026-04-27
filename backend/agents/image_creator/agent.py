@@ -62,11 +62,12 @@ def optimize_prompt_for_freepik(
     """Optimize a visual direction description into an effective Freepik/Mystic prompt.
     Always call this before generate_image_from_brief to get the best results."""
     aspect_map = {
-        "instagram": "portrait_4_5",
-        "stories": "portrait_9_16",
-        "reels": "portrait_9_16",
+        "instagram": "portrait_2_3",
+        "stories": "social_story_9_16",
+        "reels": "social_story_9_16",
         "facebook": "square_1_1",
-        "linkedin": "landscape_16_9",
+        "linkedin": "widescreen_16_9",
+        "feed": "portrait_2_3",
     }
     aspect = aspect_map.get(platform.lower(), "square_1_1")
 
